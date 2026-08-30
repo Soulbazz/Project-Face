@@ -22,14 +22,18 @@
 
 ## 💾 ข้อมูลที่ใช้ (Datasets)
 
-โปรเจกต์นี้ใช้ข้อมูล 2 ส่วน ซึ่งผู้ที่นำโค้ดไปรันต้องดาวน์โหลดข้อมูลรูปภาพเพิ่มเติมเพื่อใช้ในการเทรนโมเดล Vision Transformer:
+โปรเจกต์นี้ใช้ข้อมูล 2 ส่วน:
+1. **NHANES Dataset (Tabular Data):** ข้อมูลสำหรับเทรน Body Fat % (`nhanes_cleaned_merged_final.csv`) รวมอยู่ใน Repository นี้แล้ว
+2. **Face Images Dataset (Image Data):** ข้อมูลรูปภาพใบหน้าคนสำหรับเทรนโมเดล BMI 
+   - 📥 **ดาวน์โหลดรูปภาพชุดข้อมูลได้จากโปรเจกต์ต้นฉบับ:** https://github.com/liujie-zheng/face-to-bmi-vit/tree/main/data/Images
+   - **วิธีติดตั้ง:** เมื่อดาวน์โหลดข้อมูลภาพเสร็จแล้ว ให้นำรูปภาพทั้งหมด (เช่นไฟล์ .bmp) มาวางไว้ในพาธ `data/Images/` ของโปรเจกต์นี้
 
-1. **NHANES Dataset (Tabular Data):** 
-   - ข้อมูลตารางสำหรับเทรน Body Fat % (`nhanes_cleaned_merged_final.csv`) ถูกจัดเตรียมไว้แล้วในโฟลเดอร์ `data/`
-2. **Face Images Dataset (Image Data):**
-   - ข้อมูลรูปภาพใบหน้าคนสำหรับเทรนโมเดล BMI มีขนาดใหญ่และไม่ได้รวมอยู่ใน Repository นี้
-   - 📥 **ดาวน์โหลดรูปภาพชุดข้อมูลได้ที่:** https://drive.google.com/file/d/10P-9uIiqOnd177RRIdvbP7r6YU3UnENh/view?usp=sharing
-   - **วิธีติดตั้ง:** เมื่อดาวน์โหลดและแตกไฟล์ ZIP แล้ว ให้นำโฟลเดอร์ `Images` ไปวางไว้ในพาธ `data/Images/`
+## 👏 กิตติกรรมประกาศและเครดิต (Acknowledgements)
+
+โปรเจกต์นี้เป็นการต่อยอดและพัฒนาระบบเพิ่มเติม โดยโครงสร้างหลักในส่วนของการทำนายค่า BMI จากใบหน้า (ไฟล์โมเดล ViT, Dataloader และสคริปต์รัน) ถูกนำมาและดัดแปลงจากโปรเจกต์ Open Source ของคุณ **Liujie Zheng** 
+- **Original Face-to-BMI Repository:** [liujie-zheng/face-to-bmi-vit](https://github.com/liujie-zheng/face-to-bmi-vit)
+
+ทางผู้จัดทำขอขอบคุณสำหรับโมเดลพื้นฐานและชุดข้อมูล ซึ่งทำให้สามารถนำมาพัฒนาต่อยอดร่วมกับข้อมูล NHANES เพื่อประเมินเปอร์เซ็นต์ไขมันในร่างกาย (Body Fat %) ในโครงงานนี้ได้
 
 ## ⚙️ การติดตั้ง (Installation)
 
