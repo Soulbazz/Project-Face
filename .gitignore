@@ -16,7 +16,6 @@ weights/
 
 # --- Data & Dataset Files ---
 data/*.xpt
-data/*.csv
 data/nhanes_*
 data/Images/
 *.pkl
