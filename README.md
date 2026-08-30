@@ -30,8 +30,9 @@
 
 ## 👏 กิตติกรรมประกาศและเครดิต (Acknowledgements)
 
-โปรเจกต์นี้เป็นการต่อยอดและพัฒนาระบบเพิ่มเติม โดยโครงสร้างหลักในส่วนของการทำนายค่า BMI จากใบหน้า (ไฟล์โมเดล ViT, Dataloader และสคริปต์รัน) ถูกนำมาและดัดแปลงจากโปรเจกต์ Open Source ของคุณ **Liujie Zheng** 
-- **Original Face-to-BMI Repository:** [liujie-zheng/face-to-bmi-vit](https://github.com/liujie-zheng/face-to-bmi-vit)
+โปรเจกต์นี้เป็นการต่อยอดและพัฒนาระบบเพิ่มเติม โดยโครงสร้างหลักในส่วนของการทำนายค่า BMI จากใบหน้า ถูกนำมาและดัดแปลงจากโปรเจกต์ Open Source ของคุณ **Liujie Zheng** ภายใต้ลิขสิทธิ์ MIT License
+- **Original Repository:** [liujie-zheng/face-to-bmi-vit](https://github.com/liujie-zheng/face-to-bmi-vit)
+- **Original License Notice:** Copyright (c) 2023 Liujie Zheng
 
 ทางผู้จัดทำขอขอบคุณสำหรับโมเดลพื้นฐานและชุดข้อมูล ซึ่งทำให้สามารถนำมาพัฒนาต่อยอดร่วมกับข้อมูล NHANES เพื่อประเมินเปอร์เซ็นต์ไขมันในร่างกาย (Body Fat %) ในโครงงานนี้ได้
 
