@@ -9,10 +9,10 @@ __pycache__/
 *.py[cod]
 
 # --- Model Weights & Heavy Checkpoints ---
-weights/
 *.pt
 *.pth
 *.onnx
+*.pkl
 
 # --- Data & Dataset Files ---
 data/*.xpt
