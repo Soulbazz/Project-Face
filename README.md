@@ -48,23 +48,54 @@
 > conda env create -f environment.yml
 > conda activate face2bmi
 
-## 🚀 วิธีใช้งาน (Usage)
+🚀 วิธีใช้งาน (Usage)
+Step 1: การติดตั้ง Environment
+โปรเจกต์นี้รันบน Python 3.10 และรองรับการประมวลผลผ่าน GPU (NVIDIA CUDA 11.8)
 
-### 1. ทดสอบโมเดลทำนาย BMI จากใบหน้า (Demo)
-คุณสามารถทดสอบโมเดลกับภาพตัวอย่างได้ทันที หากยังไม่มีไฟล์น้ำหนักโมเดล (`aug_epoch_7.pt`) สคริปต์จะทำการดาวน์โหลดให้อัตโนมัติ:
-> cd scripts
-> python demo.py
+ทำการ Clone repository และเข้าสู่โฟลเดอร์โปรเจกต์:
 
-### 2. การเทรนโมเดลทำนาย Body Fat
-เทรนและสร้างไฟล์โมเดล `.pkl` ทั้งแบบมีรอบเอวและไม่มีรอบเอว:
-> python scripts/train_xgboost.py
-> python scripts/train_bodyfat.py
+git clone https://github.com/Soulbazz/Project-Face.git
+cd Project-Face
 
-### 3. การเทรนโมเดล Vision Transformer (ต้องมี Dataset รูปภาพ)
-หากต้องการเทรนโมเดลประเมินใบหน้าใหม่ทั้งหมดด้วยตัวเอง (ใช้ GPU):
-> python scripts/run.py --augmented True
+สร้างและเปิดใช้งาน Conda Environment:
 
-## 🧠 สถาปัตยกรรมโมเดล (Models Used)
-- **Vision Transformer (ViT_H_14):** ใช้โครงสร้างแบบ Pre-trained ร่วมกับการทำ Fine-tuning ที่ชั้น Head (Linear Layers + GELU + Dropout)
-- **XGBoost Regressor:** ใช้พารามิเตอร์ `n_estimators=150`, `max_depth=4`
-- **Data Augmentation:** รองรับเทคนิค Random Rotation, Horizontal Flip, Color Jitter และ Random Distortion
+conda env create -f environment.yml
+conda activate face2bmi
+
+Step 2: การเตรียมข้อมูลรูปภาพ (สำหรับเทรนโมเดลใบหน้า)
+📥 ดาวน์โหลดชุดข้อมูลภาพใบหน้าได้จากโปรเจกต์ต้นฉบับ: คลิกเพื่อดาวน์โหลดรูปภาพ Dataset
+
+เมื่อแตกไฟล์เรียบร้อย ให้นำไฟล์ภาพทั้งหมด (นามสกุล .bmp) ไปวางไว้ในโฟลเดอร์ data/Images/
+
+Step 3: การเทรนโมเดลทำนาย BMI จากใบหน้า (Vision Transformer)
+(หมายเหตุ: หากมีไฟล์โมเดล aug_epoch_7.pt อยู่ในโฟลเดอร์ weights/ แล้ว สามารถข้ามขั้นตอนนี้ได้ทันที)
+รันคำสั่งเพื่อเทรนโมเดล Deep Learning (แนะนำให้รันด้วย GPU):
+
+cd scripts
+python train_vit_bmi.py --augmented True
+
+Step 4: การเทรนโมเดลทำนาย Body Fat (Machine Learning)
+รันสคริปต์เพื่อสร้างไฟล์น้ำหนักโมเดล .pkl เข้าไปเก็บไว้ในโฟลเดอร์ weights/:
+
+python train_linear_bodyfat.py
+python train_xgboost.py
+python train_randomforest.py
+
+Step 5: ทดสอบการใช้งานโมเดล (Inference / Demo)
+คุณสามารถเลือกทดสอบระบบผ่าน 4 รูปแบบตามความต้องการ:
+
+1. ทดสอบโมเดลวิเคราะห์ใบหน้าอย่างเดียว (CLI):
+
+python demo.py
+
+2. ทดสอบทำนาย Body Fat ผ่านหน้าต่างโปรแกรม (GUI):
+
+python demo_bodyfat_gui.py
+
+3. ทดสอบทำนาย Body Fat ด้วยโมเดล Random Forest (CLI):
+
+python demo_bodyfat_rf.py
+
+4. ทดสอบเปรียบเทียบกับสูตรทางการแพทย์ Deurenberg (CLI):
+
+python demo_bodyfat_deurenberg.py

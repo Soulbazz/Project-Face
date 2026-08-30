@@ -42,41 +42,41 @@ def test_and_show(img_dir, weight_dir, age, sex, waist):
     # เงื่อนไขตรวจสอบการใช้รอบเอว (Waist) อัตโนมัติ
     # -----------------------------------------
 
-    # if waist > 0:
-    #     # เปลี่ยนชื่อไฟล์มาดึง XGBoost
-    #     fat_model = joblib.load('xgboost_bodyfat_with_waist.pkl')
-    #     with warnings.catch_warnings():
-    #         warnings.simplefilter("ignore")
-    #         body_fat = fat_model.predict([[bmi, age, sex, waist]])[0]
-        
-    #     plot_msg = f"Mode: XGBoost Full (Waist {waist} cm)"
-    #     status_msg = f"คำนวณโดยใช้รอบเอว {waist} ซม. (XGBoost ความแม่นยำสูงสุด)"
-    # else:
-    #     # เปลี่ยนชื่อไฟล์มาดึง XGBoost
-    #     fat_model = joblib.load('xgboost_bodyfat_no_waist.pkl')
-    #     with warnings.catch_warnings():
-    #         warnings.simplefilter("ignore")
-    #         body_fat = fat_model.predict([[bmi, age, sex]])[0]
-            
-    #     plot_msg = "Mode: XGBoost Basic (No Waist Data)"
-    #     status_msg = "ไม่ได้ใช้ข้อมูลรอบเอวในการคำนวณ (XGBoost ข้อมูลพื้นฐาน)"
-
     if waist > 0:
-        fat_model = joblib.load('custom_bodyfat_model_with_waist.pkl')
+        # เปลี่ยนชื่อไฟล์มาดึง XGBoost
+        fat_model = joblib.load('xgboost_bodyfat_with_waist.pkl')
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             body_fat = fat_model.predict([[bmi, age, sex, waist]])[0]
         
-        plot_msg = f"Mode: Full (Waist {waist} cm used)"
-        status_msg = f"คำนวณโดยใช้รอบเอว {waist} ซม. (มีความแม่นยำสูง)"
+        plot_msg = f"Mode: XGBoost Full (Waist {waist} cm)"
+        status_msg = f"คำนวณโดยใช้รอบเอว {waist} ซม. (XGBoost ความแม่นยำสูงสุด)"
     else:
-        fat_model = joblib.load('custom_bodyfat_model_no_waist.pkl')
+        # เปลี่ยนชื่อไฟล์มาดึง XGBoost
+        fat_model = joblib.load('xgboost_bodyfat_no_waist.pkl')
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             body_fat = fat_model.predict([[bmi, age, sex]])[0]
             
-        plot_msg = "Mode: Basic (No Waist Data)"
-        status_msg = "ไม่ได้ใช้ข้อมูลรอบเอวในการคำนวณ (ใช้ข้อมูลพื้นฐาน)"
+        plot_msg = "Mode: XGBoost Basic (No Waist Data)"
+        status_msg = "ไม่ได้ใช้ข้อมูลรอบเอวในการคำนวณ (XGBoost ข้อมูลพื้นฐาน)"
+
+    # if waist > 0:
+    #     fat_model = joblib.load('custom_bodyfat_model_with_waist.pkl')
+    #     with warnings.catch_warnings():
+    #         warnings.simplefilter("ignore")
+    #         body_fat = fat_model.predict([[bmi, age, sex, waist]])[0]
+        
+    #     plot_msg = f"Mode: Full (Waist {waist} cm used)"
+    #     status_msg = f"คำนวณโดยใช้รอบเอว {waist} ซม. (มีความแม่นยำสูง)"
+    # else:
+    #     fat_model = joblib.load('custom_bodyfat_model_no_waist.pkl')
+    #     with warnings.catch_warnings():
+    #         warnings.simplefilter("ignore")
+    #         body_fat = fat_model.predict([[bmi, age, sex]])[0]
+            
+    #     plot_msg = "Mode: Basic (No Waist Data)"
+    #     status_msg = "ไม่ได้ใช้ข้อมูลรอบเอวในการคำนวณ (ใช้ข้อมูลพื้นฐาน)"
 
     # plot
     plt.figure(figsize=(7, 7)) 
