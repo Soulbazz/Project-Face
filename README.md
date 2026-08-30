@@ -28,7 +28,7 @@
    - ข้อมูลตารางสำหรับเทรน Body Fat % (`nhanes_cleaned_merged_final.csv`) ถูกจัดเตรียมไว้แล้วในโฟลเดอร์ `data/`
 2. **Face Images Dataset (Image Data):**
    - ข้อมูลรูปภาพใบหน้าคนสำหรับเทรนโมเดล BMI มีขนาดใหญ่และไม่ได้รวมอยู่ใน Repository นี้
-   - 📥 **ดาวน์โหลดรูปภาพชุดข้อมูลได้ที่:** [ใส่ลิงก์ Google Drive หรือลิงก์ดาวน์โหลดไฟล์ ZIP ของคุณที่นี่]
+   - 📥 **ดาวน์โหลดรูปภาพชุดข้อมูลได้ที่:** https://drive.google.com/file/d/10P-9uIiqOnd177RRIdvbP7r6YU3UnENh/view?usp=sharing
    - **วิธีติดตั้ง:** เมื่อดาวน์โหลดและแตกไฟล์ ZIP แล้ว ให้นำโฟลเดอร์ `Images` ไปวางไว้ในพาธ `data/Images/`
 
 ## ⚙️ การติดตั้ง (Installation)
