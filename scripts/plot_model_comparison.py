@@ -1,16 +1,16 @@
 import matplotlib.pyplot as plt
 
-# ข้อมูลจากโมเดล
-models = ['Basic Model\n(No Waist)', 'Full Model\n(With Waist)']
-r2_scores = [0.7340, 0.7434]
-mae_scores = [3.62, 3.57]
+# ข้อมูลจากโมเดล (นำตัวเลขผลลัพธ์จากการรัน benchmark_models.py มาใส่ที่นี่)
+models = ['Linear\nRegression', 'Random\nForest', 'XGBoost']
+r2_scores = [0.7342, 0.8499, 0.8516]
+mae_scores = [3.65, 2.78, 2.77]
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
 
 # ----------------------------------------------------
 # 1. กราฟฝั่งซ้าย: R-squared (สเกล 0 ถึง 1.0 ที่ถูกต้อง)
 # ----------------------------------------------------
-bars1 = ax1.bar(models, r2_scores, color=['#8cb3d9', '#4da6ff'], edgecolor='black', width=0.5)
+bars1 = ax1.bar(models, r2_scores, color=['#8cb3d9', '#4da6ff', '#0073e6'], edgecolor='black', width=0.5)
 ax1.set_title('Model Confidence (R-squared)\n[Higher is Better]', fontsize=14, pad=15)
 ax1.set_ylim(0, 1.0)  # กำหนดให้ถูกต้อง: R-squared มีค่าเต็มคือ 1.0
 ax1.set_ylabel('R-squared Score', fontsize=12)
@@ -24,7 +24,7 @@ for bar in bars1:
 # ----------------------------------------------------
 # 2. กราฟฝั่งขวา: MAE (สเกล 0 ถึง 5.0)
 # ----------------------------------------------------
-bars2 = ax2.bar(models, mae_scores, color=['#ffb3b3', '#ff6666'], edgecolor='black', width=0.5)
+bars2 = ax2.bar(models, mae_scores, color=['#ffb3b3', '#ff6666', '#e60000'], edgecolor='black', width=0.5)
 ax2.set_title('Mean Absolute Error (MAE)\n[Lower is Better]', fontsize=14, pad=15)
 ax2.set_ylim(0, 5.0)  # กำหนดให้ถูกต้อง: MAE ใช้สเกลเปอร์เซ็นต์ Error สูงสุดที่ 5%
 ax2.set_ylabel('Error Percentage (%)', fontsize=12)
