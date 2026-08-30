@@ -10,13 +10,14 @@
 - **data/**: ข้อมูลแบบตาราง (CSV) สำหรับเทรนโมเดล Body Fat
 - **scripts/**: สคริปต์หลักสำหรับการประมวลผลและเทรนโมเดล
   - `benchmark_models.py`: เปรียบเทียบประสิทธิภาพโมเดล
-  - `cleandata.py`: ทำความสะอาดข้อมูล
+  - `prepare_dataset.py`: ทำความสะอาดข้อมูล
   - `demo.py`: โค้ดสำหรับทดสอบรันโมเดลทำนาย BMI จากใบหน้า
   - `loader.py`: จัดการ Data Dataloader และ Augmentation
   - `models.py`: โครงสร้างโมเดล ViT
-  - `run.py`: สคริปต์รัน Pipeline การเทรน Deep Learning
-  - `train_bodyfat.py`: เทรนโมเดล Linear Regression
+  - `train_vit_bmi.py`: สคริปต์รัน Pipeline การเทรน Deep Learning
+  - `train_linear_bodyfat.py`: เทรนโมเดล Linear Regression
   - `train_xgboost.py`: เทรนโมเดล XGBoost
+  - `train_randomforest.py`: เทรนโมเดล RandomForest
 - **weights/**: โฟลเดอร์เก็บไฟล์น้ำหนักโมเดล (.pt, .pkl)
 - **environment.yml**: ไฟล์ตั้งค่า Conda Environment (สำหรับ Windows/CUDA)
 
