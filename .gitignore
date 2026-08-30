@@ -16,9 +16,7 @@ weights/
 
 # --- Data & Dataset Files ---
 data/*.xpt
-data/nhanes_*
 data/Images/
-*.pkl
 
 # --- Environments ---
 venv/
