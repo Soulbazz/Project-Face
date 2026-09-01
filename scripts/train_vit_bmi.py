@@ -47,7 +47,7 @@ def validate(val_loader, model):
             y = y.to(device)
 
             pred = model(X)
-            y = y.unsqueeze(1)
+            y.unsqueeze(1).float()
 
             loss_mse = nn.MSELoss()(pred, y)
             val_loss_mse += loss_mse.item()
@@ -99,7 +99,7 @@ class EarlyStopping:
         self.counter = 0
         self.best_score = None
         self.early_stop = False
-        self.val_loss_min = np.Inf
+        self.val_loss_min = np.inf
         self.delta = delta
 
     def __call__(self, val_loss, model):
@@ -125,35 +125,69 @@ class EarlyStopping:
         torch.save(model.state_dict(), '../weights/aug_epoch_7.pt')  # save checkpoint
         self.val_loss_min = val_loss
 
-
-
 if __name__ == "__main__":
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    torch.manual_seed(42)
+    np.random.seed(42)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--augmented', type=bool, default=False, help='set to True to use augmented dataset')
+    parser.add_argument('--augmented', action='store_true',
+                        help='use augmented dataset')
     args = parser.parse_args()
 
-    train_loader, val_loader, test_loader = get_dataloaders(16, augmented=args.augmented, vit_transformed=True, show_sample=True)
+    # loader คืนค่าเรียง (train, test, val) -- รับให้ตรงลำดับจริง
+    train_loader, test_loader, val_loader = get_dataloaders(
+        16, augmented=args.augmented, vit_transformed=True, show_sample=False
+    )
+
+    CKPT = '../weights/aug_epoch_7.pt'
+
     model = get_model().float().to(device)
     loss_fn = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    epochs = 50
+    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-5, weight_decay=0.01)
     early_stopping = EarlyStopping(patience=5, verbose=True)
 
-    for t in range(epochs):
+    for t in range(50):
         print(f"Epoch {t + 1}\n-------------------------------")
         train(train_loader, model, loss_fn, optimizer)
-        val_loss = validate(test_loader, model)
+        val_loss = validate(val_loader, model)      # val จริง เท่านั้น
         early_stopping(val_loss, model)
-
         if early_stopping.early_stop:
             print("Early stopping")
             break
 
-    model.load_state_dict(torch.load('../weights/checkpoint.pt'))
-    test(test_loader, model)
-
+    model.load_state_dict(torch.load(CKPT, map_location=device))
+    test(test_loader, model)                        # test จริง แตะครั้งเดียวจบ
     print("Done!")
+
+# if __name__ == "__main__":
+#     device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('--augmented', type=bool, default=False, help='set to True to use augmented dataset')
+#     args = parser.parse_args()
+
+#     train_loader, val_loader, test_loader = get_dataloaders(16, augmented=args.augmented, vit_transformed=True, show_sample=True)
+#     model = get_model().float().to(device)
+#     loss_fn = nn.MSELoss()
+#     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+#     epochs = 50
+#     early_stopping = EarlyStopping(patience=5, verbose=True)
+
+#     for t in range(epochs):
+#         print(f"Epoch {t + 1}\n-------------------------------")
+#         train(train_loader, model, loss_fn, optimizer)
+#         val_loss = validate(test_loader, model)
+#         early_stopping(val_loss, model)
+
+#         if early_stopping.early_stop:
+#             print("Early stopping")
+#             break
+
+#     model.load_state_dict(torch.load('../weights/checkpoint.pt'))
+#     test(test_loader, model)
+
+#     print("Done!")
 
 
