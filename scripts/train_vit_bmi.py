@@ -47,7 +47,7 @@ def validate(val_loader, model):
             y = y.to(device)
 
             pred = model(X)
-            y.unsqueeze(1).float()
+            y = y.unsqueeze(1).float()
 
             loss_mse = nn.MSELoss()(pred, y)
             val_loss_mse += loss_mse.item()
@@ -76,7 +76,7 @@ def test(test_loader, model):
             y = y.to(device)
 
             pred = model(X)
-            y = y.unsqueeze(1)
+            y = y.unsqueeze(1).float()
 
             loss_mse = nn.MSELoss()(pred, y)
             test_loss_mse += loss_mse.item()
@@ -161,6 +161,7 @@ if __name__ == "__main__":
     test(test_loader, model)                        # test จริง แตะครั้งเดียวจบ
     print("Done!")
 
+#ของเก่า
 # if __name__ == "__main__":
 #     device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
