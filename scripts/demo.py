@@ -10,7 +10,11 @@ from torchvision.transforms import ToTensor
 from models import get_model
 from loader import vit_transforms
 
+import xgboost as xgb
+import pandas as pd
 
+model_resid = xgb.XGBRegressor()
+model_resid.load_model('../models/residual_corrector.json')
 
 def test_and_show(img_dir, weight_dir):
     device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
@@ -52,11 +56,22 @@ class TqdmUpTo(tqdm):
 if __name__ == "__main__":
     if not os.path.exists("../weights"):
         os.makedirs("../weights")
-        weight_dir = "../weights/aug_epoch_7.pt"
+    weight_dir = "../weights/aug_epoch_7_backup.pt"
+    # ถ้ายังไม่มีไฟล์ weights ให้ดาวน์โหลดก่อน (บรรทัดที่ 72 ของเดิม)
+    if not os.path.exists(weight_dir):
         url = "https://face-to-bmi-weights.s3.us-east.cloud-object-storage.appdomain.cloud/aug_epoch_7.pt"
-        print("dowloading weights...")
+        print("downloading weights...")
         with TqdmUpTo(unit='B', unit_scale=True, miniters=1, desc=url.split('/')[-1]) as t:
             urllib.request.urlretrieve(url, weight_dir, reporthook=t.update_to)
 
-    pred = test_and_show('../data/test_images/testpic11.png', '../weights/aug_epoch_7สำรอง.pt')
-    print(f'Predicted BMI: {pred}')
+    # 1. ทายค่าจาก ViT
+    pred_vit = test_and_show('../data/test_images/testpic11.png', weight_dir)
+
+    # 2. ให้ XGBoost ทายค่าความคลาดเคลื่อน
+    residual_guess = model_resid.predict(pd.DataFrame({'y_pred': [pred_vit]}))
+
+    # 3. รวมผล
+    final_bmi = pred_vit + residual_guess[0]
+
+    print(f"ค่าก่อนแก้ (ViT): {pred_vit:.4f}")
+    print(f"ค่าหลังแก้ (Corrected): {final_bmi:.4f}")
