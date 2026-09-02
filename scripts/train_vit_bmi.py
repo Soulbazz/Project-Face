@@ -6,14 +6,22 @@ from models import get_model
 
 import numpy as np
 import argparse
-import time                      # สำหรับจับเวลาเป็นนาที
-from datetime import datetime    # สำหรับแสดงเวลาตามนาฬิกา
+import time
+from datetime import datetime
+
+
+def get_device():
+    """กำหนดให้ทุกฟังก์ชันใช้ device เดียวกันแน่นอน (แก้บั๊กเดิมที่ main block เคยขาด mps)"""
+    if torch.cuda.is_available():
+        return "cuda"
+    elif torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
 
 
 # train one epoch
 def train(train_loader, model, loss_fn, optimizer, scaler):
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-
+    device = get_device()
     model.train()
     for batch, (X, y) in enumerate(train_loader):
         X = X.to(device)
@@ -21,7 +29,6 @@ def train(train_loader, model, loss_fn, optimizer, scaler):
 
         optimizer.zero_grad()
 
-        # เปิดโหมดประมวลผลแบบผสม (Mixed Precision)
         with autocast():
             pred = model(X)
             y = y.unsqueeze(1).float()
@@ -36,11 +43,8 @@ def train(train_loader, model, loss_fn, optimizer, scaler):
             print(f"train loss: {loss_val:>7f} [{current:>5d}/{len(train_loader.dataset):>5d}]")
 
 
-# validate and return mae loss
 def validate(val_loader, model):
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-
-    # Validation
+    device = get_device()
     model.eval()
     val_loss_mse = 0
     val_loss_mae = 0
@@ -48,28 +52,18 @@ def validate(val_loader, model):
         for batch_idx, (X, y) in enumerate(val_loader):
             X = X.to(device)
             y = y.to(device)
-
             pred = model(X)
             y = y.unsqueeze(1).float()
-
-            loss_mse = nn.MSELoss()(pred, y)
-            val_loss_mse += loss_mse.item()
-            loss_mae = nn.L1Loss()(pred, y)
-            val_loss_mae += loss_mae.item()
-
+            val_loss_mse += nn.MSELoss()(pred, y).item()
+            val_loss_mae += nn.L1Loss()(pred, y).item()
     val_loss_mse /= len(val_loader)
     val_loss_mae /= len(val_loader)
-
     print(f"val mse loss: {val_loss_mse:>7f}, val mae loss: {val_loss_mae}")
     return val_loss_mae
 
 
-
-# test and return mse and mae loss
 def test(test_loader, model):
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-
-    # Test
+    device = get_device()
     model.eval()
     test_loss_mse = 0
     test_loss_mae = 0
@@ -77,24 +71,16 @@ def test(test_loader, model):
         for batch_idx, (X, y) in enumerate(test_loader):
             X = X.to(device)
             y = y.to(device)
-
             pred = model(X)
             y = y.unsqueeze(1).float()
-
-            loss_mse = nn.MSELoss()(pred, y)
-            test_loss_mse += loss_mse.item()
-            loss_mae = nn.L1Loss()(pred, y)
-            test_loss_mae += loss_mae.item()
-
+            test_loss_mse += nn.MSELoss()(pred, y).item()
+            test_loss_mae += nn.L1Loss()(pred, y).item()
     test_loss_mse /= len(test_loader)
     test_loss_mae /= len(test_loader)
-
     print(f"test mse loss: {test_loss_mse:>7f}, test mae loss: {test_loss_mae}")
     return test_loss_mse, test_loss_mae
 
 
-
-# helper class for early stopping
 class EarlyStopping:
     def __init__(self, patience=5, verbose=False, delta=0):
         self.patience = patience
@@ -106,9 +92,7 @@ class EarlyStopping:
         self.delta = delta
 
     def __call__(self, val_loss, model):
-
         score = -val_loss
-
         if self.best_score is None:
             self.best_score = score
             self.save_checkpoint(val_loss, model)
@@ -125,11 +109,12 @@ class EarlyStopping:
     def save_checkpoint(self, val_loss, model):
         if self.verbose:
             print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
-        torch.save(model.state_dict(), '../weights/aug_epoch_7.pt')  # save checkpoint
+        torch.save(model.state_dict(), '../weights/aug_epoch_7_a.pt')  # << ชื่อไฟล์ใหม่ ไม่ทับของเดิม
         self.val_loss_min = val_loss
 
+
 if __name__ == "__main__":
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = get_device()
 
     torch.manual_seed(42)
     np.random.seed(42)
@@ -138,91 +123,39 @@ if __name__ == "__main__":
     parser.add_argument('--augmented', action='store_true', help='use augmented dataset')
     args = parser.parse_args()
 
-    # แนะนำ: ลด Batch Size จาก 16 เหลือ 12 หรือ 8 เพื่อลดความร้อนการ์ดจอชั่วคราว
     train_loader, test_loader, val_loader = get_dataloaders(
         12, augmented=args.augmented, vit_transformed=True, show_sample=False
     )
 
-    CKPT = '../weights/aug_epoch_7.pt'
+    CKPT = '../weights/aug_epoch_7_a.pt'   # << ต้องตรงกับใน save_checkpoint() ด้านบนเป๊ะ
 
-    model = get_model().float().to(device)
+    model = get_model().float().to(device)     # << ไม่โหลด state เก่าใดๆ เริ่มจาก pretrained weight ของ get_model() ล้วนๆ
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=3e-5, weight_decay=0.01)
     scaler = GradScaler()
-
-    # 1. โหลดสมองเวอร์ชันล่าสุดที่รอดชีวิตจากคอมดับ
-    print(f"Recovering checkpoint from {CKPT}...")
-    model.load_state_dict(torch.load(CKPT, map_location=device))
-
-    # 2. ให้โมเดลรัน Validate ตัวเอง 1 รอบเพื่อกู้คืนค่าสถิติที่ดีที่สุด
-    print("Evaluating recovered model to restore best score...")
-    recovered_val_loss = validate(val_loader, model)
-    print(f"Recovered best score: {recovered_val_loss}")
-
-    # 3. ตั้งค่า Early Stopping ให้จำสถิติที่กู้มาได้
-    early_stopping = EarlyStopping(patience=5, verbose=True)
-    early_stopping.best_score = -recovered_val_loss
-    early_stopping.val_loss_min = recovered_val_loss
+    early_stopping = EarlyStopping(patience=5, verbose=True)   # << best_score เริ่มจาก None ตามปกติ ไม่ตั้งค่าล่วงหน้า
 
     total_start_time = time.time()
 
-    # 4. เริ่มรันต่อ (เนื่องจากเราไม่รู้ว่าดับที่ Epoch ไหน ให้ระบบรันต่อไปอีกสัก 20-30 รอบ)
-    for t in range(30):
+    for t in range(50):                         # << 50 epoch เต็ม ตามที่ต้องการ
         epoch_start_time = time.time()
         current_time = datetime.now().strftime("%H:%M:%S")
-        
-        print(f"\nResumed Epoch {t + 1} | Started at: {current_time}\n-------------------------------")
-        
+        print(f"\nEpoch {t + 1} | Started at: {current_time}\n-------------------------------")
+
         train(train_loader, model, loss_fn, optimizer, scaler)
-        val_loss = validate(val_loader, model)      
+        val_loss = validate(val_loader, model)
         early_stopping(val_loss, model)
-        
+
         epoch_duration = (time.time() - epoch_start_time) / 60
         print(f">> Epoch completed in: {epoch_duration:.2f} minutes")
 
         if early_stopping.early_stop:
             print("Early stopping triggered. Training complete!")
             break
-            
+
     total_duration = (time.time() - total_start_time) / 60
-    print(f"Total Resume Training Time: {total_duration:.2f} minutes")
+    print(f"Total Training Time: {total_duration:.2f} minutes")
 
     model.load_state_dict(torch.load(CKPT, map_location=device))
-    test(test_loader, model)                        
+    test(test_loader, model)
     print("Done!")
-
-# if __name__ == "__main__":
-#     device = "cuda" if torch.cuda.is_available() else "cpu"
-
-#     torch.manual_seed(42)
-#     np.random.seed(42)
-
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument('--augmented', action='store_true',
-#                         help='use augmented dataset')
-#     args = parser.parse_args()
-
-#     # loader คืนค่าเรียง (train, test, val) -- รับให้ตรงลำดับจริง
-#     train_loader, test_loader, val_loader = get_dataloaders(
-#         16, augmented=args.augmented, vit_transformed=True, show_sample=False
-#     )
-
-#     CKPT = '../weights/aug_epoch_7.pt'
-
-#     model = get_model().float().to(device)
-#     loss_fn = nn.MSELoss()
-#     optimizer = torch.optim.AdamW(model.parameters(), lr=3e-5, weight_decay=0.01)
-#     early_stopping = EarlyStopping(patience=5, verbose=True)
-
-#     for t in range(50):
-#         print(f"Epoch {t + 1}\n-------------------------------")
-#         train(train_loader, model, loss_fn, optimizer)
-#         val_loss = validate(val_loader, model)      # val จริง เท่านั้น
-#         early_stopping(val_loss, model)
-#         if early_stopping.early_stop:
-#             print("Early stopping")
-#             break
-
-#     model.load_state_dict(torch.load(CKPT, map_location=device))
-#     test(test_loader, model)                        # test จริง แตะครั้งเดียวจบ
-#     print("Done!")
