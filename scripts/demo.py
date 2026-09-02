@@ -58,5 +58,5 @@ if __name__ == "__main__":
         with TqdmUpTo(unit='B', unit_scale=True, miniters=1, desc=url.split('/')[-1]) as t:
             urllib.request.urlretrieve(url, weight_dir, reporthook=t.update_to)
 
-    pred = test_and_show('../data/testpic11.png', '../weights/aug_epoch_7.pt')
+    pred = test_and_show('../data/test_images/testpic11.png', '../weights/aug_epoch_7สำรอง.pt')
     print(f'Predicted BMI: {pred}')
