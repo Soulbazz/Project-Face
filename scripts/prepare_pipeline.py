@@ -5,6 +5,8 @@ from PIL import Image
 from torchvision.transforms import ToTensor
 from loader import vit_transforms
 from models import get_model
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 
 def load_all_models(device):
     print("กำลังโหลดระบบ AI ทั้งหมด...")
