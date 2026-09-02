@@ -7,10 +7,12 @@ import torch
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
+from torch.utils.data import Subset
 from torchvision import transforms as T
 from torchvision.transforms import ToTensor, InterpolationMode
 from torchvision.transforms.functional import adjust_contrast, adjust_brightness
 
+SPLIT_FILE = '../data/split_fixed.csv'
 
 # helper class for random distortion
 class RandomDistortion(torch.nn.Module):
@@ -148,11 +150,11 @@ def show_sample_image(dataset):
 
 # split dataset and (optionally) augment and/ or transform it for vit
 def train_val_test_split(dataset, augmented=True, vit_transformed=True):
-    val_size = int(0.1 * len(dataset))
-    test_size = int(0.2 * len(dataset))
-    train_size = len(dataset) - val_size - test_size
+    _df = pd.read_csv(SPLIT_FILE)
+    train_dataset = Subset(dataset, _df.index[_df['split'] == 'train'].to_numpy())
+    val_dataset   = Subset(dataset, _df.index[_df['split'] == 'val'].to_numpy())
+    test_dataset  = Subset(dataset, _df.index[_df['split'] == 'test'].to_numpy())
 
-    train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
 
     if augmented:
         train_dataset = AugmentedBMIDataset(train_dataset, augmentation_transforms)

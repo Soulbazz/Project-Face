@@ -109,7 +109,7 @@ class EarlyStopping:
     def save_checkpoint(self, val_loss, model):
         if self.verbose:
             print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
-        torch.save(model.state_dict(), '../weights/aug_epoch_7_a.pt')  # << ชื่อไฟล์ใหม่ ไม่ทับของเดิม
+        torch.save(model.state_dict(), '../weights/aug_epoch_7.pt')
         self.val_loss_min = val_loss
 
 
@@ -127,7 +127,7 @@ if __name__ == "__main__":
         12, augmented=args.augmented, vit_transformed=True, show_sample=False
     )
 
-    CKPT = '../weights/aug_epoch_7_a.pt'   # << ต้องตรงกับใน save_checkpoint() ด้านบนเป๊ะ
+    CKPT = '../weights/aug_epoch_7.pt'   # << ต้องตรงกับใน save_checkpoint() ด้านบนเป๊ะ
 
     model = get_model().float().to(device)     # << ไม่โหลด state เก่าใดๆ เริ่มจาก pretrained weight ของ get_model() ล้วนๆ
     loss_fn = nn.MSELoss()
