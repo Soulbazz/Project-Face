@@ -9,9 +9,14 @@ dependencies:
   - torchvision=0.15.2
   - torchaudio=2.0.2
   - pytorch-cuda=11.8
+  # --- บังคับเวอร์ชัน core ที่นี่ ---
   - numpy=1.24.3
   - pandas=1.5.3
-  - pillow=9.4.0
-  - matplotlib=3.7.1
-  - tqdm=4.65.0
-  - requests=2.29.0
+  - pip
+  - pip:
+      # --- ตัวที่ต้องผ่าน pip ---
+      - opencv-python==4.9.0.80
+      - pyarrow==14.0.2
+      - streamlit>=1.36.0
+      - plotly>=5.20.0
+      - fpdf2>=2.7.6
