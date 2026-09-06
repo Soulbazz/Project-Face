@@ -1,0 +1,4 @@
+Model,n,mae,rmse,r2,bias
+Deurenberg (1991),1230,6.397,8.312,0.168,-4.115
+XGBoost (+waist),1230,3.648,4.694,0.735,-0.055
+XGBoost (no waist),1230,3.739,4.796,0.723,-0.069

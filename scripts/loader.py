@@ -12,12 +12,12 @@ from torchvision import transforms as T
 from torchvision.transforms import ToTensor, InterpolationMode
 from torchvision.transforms.functional import adjust_contrast, adjust_brightness
 
-SPLIT_FILE = '../data/split_fixed.csv'
+SPLIT_FILE = '../data/split_fixed_v2.csv'
 
 # helper class for random distortion
 class RandomDistortion(torch.nn.Module):
     def __init__(self, probability=0.25, grid_width=2, grid_height=2, magnitude=8):
-        super().__init__()
+        super().__init__() 
         self.probability = probability
         self.grid_width = grid_width
         self.grid_height = grid_height
@@ -44,6 +44,11 @@ class RandomAdjustContrast(torch.nn.Module):
         else:
             return img
 
+
+def random_adjust_brightness(img):
+    factor = torch.rand(1).item() + 0.5
+    return adjust_brightness(img, factor)   
+
 # transforms for data augmentation
 augmentation_transforms = T.Compose([
     T.RandomRotation(5),
@@ -51,7 +56,7 @@ augmentation_transforms = T.Compose([
     RandomDistortion(probability=0.25, grid_width=2, grid_height=2, magnitude=8),
     T.RandomApply([T.ColorJitter(brightness=(0.5, 1.5), contrast=(0.8, 1.2), saturation=(0.8, 1.2), hue=(0.0, 0.1))], p=1),
     RandomAdjustContrast(probability=0.5, min_factor=0.8, max_factor=1.2),
-    T.Lambda(lambda img: adjust_brightness(img, torch.rand(1).item() + 0.5))
+    T.Lambda(random_adjust_brightness)
 ])
 
 # transforms for vit
@@ -84,7 +89,8 @@ class BMIDataset(Dataset):
         return len(self.csv)
 
     def __getitem__(self, idx):
-        image_path = os.path.join(self.image_folder, self.csv.iloc[idx, 4])
+        image_path = os.path.join(self.image_folder, self.csv.iloc[idx]['name'])
+
         image = Image.open(image_path)
 
         # check the channel number
@@ -151,18 +157,31 @@ def show_sample_image(dataset):
 # split dataset and (optionally) augment and/ or transform it for vit
 def train_val_test_split(dataset, augmented=True, vit_transformed=True):
     _df = pd.read_csv(SPLIT_FILE)
-    train_dataset = Subset(dataset, _df.index[_df['split'] == 'train'].to_numpy())
-    val_dataset   = Subset(dataset, _df.index[_df['split'] == 'val'].to_numpy())
-    test_dataset  = Subset(dataset, _df.index[_df['split'] == 'test'].to_numpy())
 
+    # dataset ที่รับเข้ามาคือ BMIDataset ดิบ ซึ่งมี attribute .csv 
+    # ที่ผ่านการ isin(images) + reset_index มาแล้ว
+    dataset_names = dataset.csv['name'].reset_index(drop=True)
+    name_to_idx = {name: idx for idx, name in enumerate(dataset_names)}
+
+    def get_indices(split_name):
+        names = _df.loc[_df['split'] == split_name, 'name']
+        idx_list = [name_to_idx[n] for n in names if n in name_to_idx]
+        missing = [n for n in names if n not in name_to_idx]
+        if missing:
+            print(f'[WARNING] split={split_name}: {len(missing)} ภาพใน split_fixed.csv ไม่พบใน dataset จริง (ถูกกรองออกไปแล้ว)')
+        return idx_list
+
+    train_dataset = Subset(dataset, get_indices('train'))
+    val_dataset   = Subset(dataset, get_indices('val'))
+    test_dataset  = Subset(dataset, get_indices('test'))
 
     if augmented:
         train_dataset = AugmentedBMIDataset(train_dataset, augmentation_transforms)
 
     if vit_transformed:
         train_dataset = VitTransformedDataset(train_dataset)
-        val_dataset = VitTransformedDataset(val_dataset)
-        test_dataset = VitTransformedDataset(test_dataset)
+        val_dataset   = VitTransformedDataset(val_dataset)
+        test_dataset  = VitTransformedDataset(test_dataset)
 
     return train_dataset, val_dataset, test_dataset
 
@@ -170,21 +189,21 @@ def train_val_test_split(dataset, augmented=True, vit_transformed=True):
 
 # get dataloaders
 def get_dataloaders(batch_size=16, augmented=True, vit_transformed=True, show_sample=False):
-    bmi_dataset = BMIDataset('../data/data.csv', '../data/Images', 'bmi', ToTensor())
+    bmi_dataset = BMIDataset(SPLIT_FILE, '../data/Images', 'bmi', ToTensor())
     if show_sample:
         train_dataset, val_dataset, test_dataset = train_val_test_split(bmi_dataset, augmented, vit_transformed=False)
         show_sample_image(train_dataset)
     train_dataset, val_dataset, test_dataset = train_val_test_split(bmi_dataset, augmented, vit_transformed)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size,  shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size,  shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size,  shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size,  shuffle=False, num_workers=2, pin_memory=True)
 
-    return train_loader, test_loader, val_loader
+    return train_loader, val_loader, test_loader
 
 
 
 # for test
-if __name__ == "__main__":
-    get_dataloaders(augmented=False, show_sample=True)
-    get_dataloaders(augmented=True, show_sample=True)
+# if __name__ == "__main__":
+#     get_dataloaders(augmented=False, show_sample=True)
+#     get_dataloaders(augmented=True, show_sample=True)
