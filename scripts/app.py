@@ -2,6 +2,10 @@
 app.py — AI Health Screening Dashboard
 รัน:  cd scripts && streamlit run app.py
 """
+import os
+import sys
+
+import torch
 from datetime import datetime
 
 import streamlit as st
