@@ -626,22 +626,44 @@ class FaceDataset(Dataset):
     def __init__(self, df, transform=None):
         self.df = df
         self.transform = transform
+        self.img_col = 'name'
+        self.bmi_col = 'bmi'
+
+        # หาโฟลเดอร์ที่เก็บไฟล์รูปภาพจริงในโปรเจกต์
+        sample_filename = str(df[self.img_col].iloc[0])
+        possible_dirs = [
+            "../data/images",
+            "../data/cropped_faces",
+            "../data/faces",
+            "../data/img",
+            "../data",
+            "data/images",
+            "images"
+        ]
+        
+        self.image_dir = ""
+        for d in possible_dirs:
+            test_path = os.path.join(d, sample_filename)
+            if os.path.exists(test_path):
+                self.image_dir = d
+                break
+                
+        print(f"[*] Found images directory: '{self.image_dir}'")
+        print(f"[*] FaceDataset ready -> using column '{self.img_col}' ({len(self.df)} samples)")
 
     def __len__(self):
         return len(self.df)
 
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        img_path = row['image_path']
-        
-        if not os.path.exists(img_path):
-            img_path = os.path.join("..", img_path)
+        filename = str(row[self.img_col])
+        img_path = os.path.join(self.image_dir, filename) if self.image_dir else filename
 
         image = Image.open(img_path).convert('RGB')
         if self.transform:
             image = self.transform(image)
 
-        bmi = float(row['bmi'])
+        bmi = float(row[self.bmi_col])
         return image, bmi
 
 # 2. ฟังก์ชันสร้างโครงสร้างโมเดล ViT-H/14

@@ -10,10 +10,10 @@ print("กำลังสร้างโมเดล NCDs แบบไม่ใ�
 df_main = pd.read_csv('../data/processed/nhanes_cleaned_merged_final.csv')
 df_main['GENDER_NUM'] = df_main['GENDER'].map({'Male': 1, 'Female': 0})
 
-df_diab = pd.read_sas('data/raw/DIQ_C.XPT')
+df_diab = pd.read_sas('../data/raw/DIQ_C.XPT')
 df_diab['DIABETES'] = df_diab['DIQ010'].apply(lambda x: 1 if x == 1 else 0) 
 
-df_hyper = pd.read_sas('data/raw/BPQ_C.XPT')
+df_hyper = pd.read_sas('../data/raw/BPQ_C.XPT')
 df_hyper['HYPERTENSION'] = df_hyper['BPQ020'].apply(lambda x: 1 if x == 1 else 0)
 
 df_merged = pd.merge(df_main, df_diab[['SEQN', 'DIABETES']], on='SEQN', how='inner')

@@ -37,7 +37,7 @@ BASE_DIR = Path(__file__).resolve().parent
 WEIGHTS_DIR = (BASE_DIR.parent / "weights").resolve()
 
 WEIGHT_FILES = {
-    "vit":          "aug_epoch_7_backup2.pt",
+    "vit":          "vit_head_split_v2.pt",
     "bf_waist":     "xgboost_bodyfat_with_waist.pkl",
     "bf_nowaist":   "xgboost_bodyfat_no_waist.pkl",
     "diab_waist":   "xgb_classifier_diabetes.pkl",

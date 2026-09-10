@@ -18,12 +18,12 @@ df_main['GENDER_NUM'] = df_main['GENDER'].map({'Male': 1, 'Female': 0})
 # 2. โหลดไฟล์เฉลย (Labels) จากโฟลเดอร์ raw
 print("กำลังดึงข้อมูลเฉลยผู้ป่วยเบาหวานและความดัน...")
 # เบาหวาน (DIQ_I.XPT) - DIQ010: 1=เป็น, 2=ไม่เป็น, 3=เสี่ยง (Borderline)
-df_diab = pd.read_sas('data/raw/DIQ_C.XPT')
+df_diab = pd.read_sas('../data/raw/DIQ_C.XPT')
 df_diab['DIABETES'] = df_diab['DIQ010'].apply(lambda x: 1 if x == 1 else 0) 
 df_diab = df_diab[['SEQN', 'DIABETES']]
 
 # ความดันโลหิตสูง (BPQ_I.XPT) - BPQ020: 1=เป็น, 2=ไม่เป็น
-df_hyper = pd.read_sas('data/raw/BPQ_C.XPT')
+df_hyper = pd.read_sas('../data/raw/BPQ_C.XPT')
 df_hyper['HYPERTENSION'] = df_hyper['BPQ020'].apply(lambda x: 1 if x == 1 else 0)
 df_hyper = df_hyper[['SEQN', 'HYPERTENSION']]
 

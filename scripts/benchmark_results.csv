@@ -1,1 +1,4 @@
-
+Model Name,Checkpoint File,Test MAE,Test MSE,Test RMSE,Pearson (r)
+Backup Epoch 7 (Run 1),../weights/aug_epoch_7_backup.pt,32.5323,1119.6661,33.4614,0.2137
+Backup Epoch 7 (Run 2),../weights/aug_epoch_7_backup2.pt,32.2718,1104.0859,33.2278,-0.2223
+Audited Split V2 (Final),../weights/vit_head_split_v2.pt,32.4374,1114.7302,33.3876,-0.1986
