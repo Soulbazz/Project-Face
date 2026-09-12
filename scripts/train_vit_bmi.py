@@ -107,7 +107,7 @@ class EarlyStopping:
     def save_checkpoint(self, val_loss, model):
         if self.verbose:
             print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
-        torch.save(model.state_dict(), '../weights/aug_epoch_7.pt')   # << เปลี่ยนกลับ
+        torch.save(model.state_dict(), '../weights/vit_bmi_model.pt')
         self.val_loss_min = val_loss
 
 
@@ -126,7 +126,7 @@ if __name__ == "__main__":
         24, augmented=args.augmented, vit_transformed=True, show_sample=False    # << 12 -> 24
     )
 
-    CKPT = '../weights/aug_epoch_7.pt'   # << เปลี่ยนกลับ ต้องตรงกับด้านบนเป๊ะ
+    CKPT = '../weights/vit_bmi_model.pt'
 
     model = get_model().float().to(device)
     loss_fn = nn.MSELoss()
