@@ -28,8 +28,17 @@ from models import get_model
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
+import cv2
+import numpy as np
+
+# นำเข้า facial_concepts แบบ local import เพื่อไม่ให้พังเวลาอยู่ใน scripts/
+try:
+    from facial_concepts import extract_facial_morphometry
+except ImportError:
+    from scripts.facial_concepts import extract_facial_morphometry
+
 # ══════════════════════════════════════════════════════════
-# PATH CONFIG — อ้างอิงจากไฟล์นี้ ไม่ใช่ current working directory
+# PATH CONFIG
 # ══════════════════════════════════════════════════════════
 BASE_DIR = Path(__file__).resolve().parent
 WEIGHTS_DIR = (BASE_DIR.parent / "weights").resolve()
@@ -93,9 +102,7 @@ def get_device() -> str:
         return "mps"
     return "cpu"
 
-
 def check_weights() -> list[str]:
-    """คืน list ชื่อไฟล์ weight ที่หายไป (ใช้เช็คตอนเปิดแอป)"""
     return [f for f in WEIGHT_FILES.values() if not (WEIGHTS_DIR / f).exists()]
 
 
@@ -204,7 +211,7 @@ def to_pil(image: Union[str, Path, bytes, bytearray, Image.Image, Any]) -> Image
         img = Image.open(io.BytesIO(image))
     elif isinstance(image, (str, Path)):
         img = Image.open(image)
-    elif hasattr(image, "read"):          # file-like (UploadedFile / BytesIO)
+    elif hasattr(image, "read"):
         try:
             image.seek(0)
         except Exception:
@@ -216,10 +223,6 @@ def to_pil(image: Union[str, Path, bytes, bytearray, Image.Image, Any]) -> Image
     img = ImageOps.exif_transpose(img)    # แก้รูปหมุนจากมือถือ
     return img.convert("RGB")
 
-
-# ══════════════════════════════════════════════════════════
-# CLASSIFICATION HELPERS
-# ══════════════════════════════════════════════════════════
 def analyze_body_shape(bmi: float, body_fat: float, gender) -> dict:
     if bmi < 18.5:
         bmi_cat, bmi_key = "น้ำหนักต่ำกว่าเกณฑ์", "under"
@@ -245,7 +248,6 @@ def analyze_body_shape(bmi: float, body_fat: float, gender) -> dict:
     return {"bmi_cat": bmi_cat, "bmi_key": bmi_key,
             "bf_cat": bf_cat, "bf_key": bf_key, "bf_cuts": cuts}
 
-
 def get_risk_level(pct: float) -> dict:
     if pct < 40:
         return {"label": "ความเสี่ยงต่ำ", "key": "low",
@@ -263,6 +265,11 @@ def get_risk_level(pct: float) -> dict:
             "color": "#dc2626", "bg": "#fee2e2", "icon": "🔴",
             "rgb": (220, 38, 38)}
 
+def enable_mc_dropout(model):
+    """เปิด Dropout layer ค้างไว้ขณะทำนายเพื่อประเมิน Epistemic Uncertainty"""
+    for m in model.modules():
+        if m.__class__.__name__.startswith('Dropout'):
+            m.train()
 
 # ══════════════════════════════════════════════════════════
 # MAIN PREDICTION — คืน dict; รองรับ MC Dropout uncertainty (opt-in)
@@ -305,6 +312,9 @@ def predict_health_risk(
 
     # ---------- Load image ----------
     img = to_pil(image)
+    
+    # แปลง PIL Image เป็นภาพ OpenCV BGR สำหรับตรวจสอบ Landmark
+    img_bgr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
     # ---------- FACE GUARD ----------
     face_report = None
@@ -318,8 +328,28 @@ def predict_health_risk(
     vit_model = models["vit"]
     vit_model.eval()  # การันตี dropout ปิดสำหรับค่าประเมินหลัก (ไม่เปลี่ยนพฤติกรรมเดิม)
     img_tensor = vit_transforms(ToTensor()(img)).unsqueeze(0).to(device)
+    
+    vit_model = models["vit"]
+    vit_model.eval()
+    enable_mc_dropout(vit_model)
+    
+    mc_preds = []
     with torch.no_grad():
-        pred_bmi = float(vit_model(img_tensor).item())
+        for _ in range(25):
+            val = vit_model(img_tensor).item()
+            mc_preds.append(val)
+            
+    pred_bmi = float(np.mean(mc_preds))
+    std_bmi = float(np.std(mc_preds))
+    ci_lower = float(np.percentile(mc_preds, 2.5))
+    ci_upper = float(np.percentile(mc_preds, 97.5))
+
+    # ---------- [SAFETY LAYER 2] Epistemic Uncertainty Rejection ----------
+    if std_bmi > 1.8:
+        raise ValueError(
+            f"[Epistemic Rejection] ความไม่แน่นอนของโครงสร้างใบหน้าสูงเกินเกณฑ์ (±SD: {std_bmi:.2f} > 1.8) "
+            "โมเดลไม่คุ้นเคยกับลักษณะโครงหน้านี้ แนะนำให้ปรึกษาแพทย์เพื่อตรวจวัดโดยตรง"
+        )
 
     # ---------- STAGE 1.5: Body Fat (Dual Route) ----------
     if has_waist:
@@ -360,6 +390,8 @@ def predict_health_risk(
                       else "ประเมินแบบพื้นฐาน (ไม่ใช้รอบเอว)"),
         "lifestyle": lifestyle, "lifestyle_meta": ls_meta,
         "bmi": pred_bmi, "bmi_cat": shape["bmi_cat"], "bmi_key": shape["bmi_key"],
+        "bmi_std": std_bmi, "ci_range": [ci_lower, ci_upper],
+        "morphometry": morph_data,
         "raw_bodyfat": raw_bodyfat, "bodyfat": pred_bodyfat,
         "calibration_delta": actual_delta, "was_clamped": was_clamped,
         "bf_cat": shape["bf_cat"], "bf_key": shape["bf_key"],
@@ -420,7 +452,6 @@ def predict_health_risk(
 
 
 class FaceGuardError(Exception):
-    """ยกขึ้นเมื่อภาพไม่ผ่านการตรวจใบหน้า"""
     def __init__(self, report):
         self.report = report
         super().__init__(report.message)
@@ -434,13 +465,14 @@ def print_report(r: dict) -> None:
     print("🏥 สรุปผลการวิเคราะห์สุขภาพ AI Pipeline 🏥")
     print("=" * 60)
     waist_display = f"{r['waist_cm']} ซม." if r["has_waist"] else "ไม่ได้ระบุ"
-    print(f"ผู้รับการประเมิน: {str(r['gender']).capitalize()}, "
-          f"อายุ {r['age']} ปี, รอบเอว: {waist_display}")
+    print(f"ผู้รับการประเมิน: {str(r['gender']).capitalize()}, อายุ {r['age']} ปี, รอบเอว: {waist_display}")
     print(f"รูปแบบการใช้ชีวิต: {r['lifestyle_meta']['display']}")
     print(f"โหมดการประเมิน: {r['mode_text']}")
     print("-" * 60)
-    print("📷 [Stage 1] ประเมินจากใบหน้า (ViT Model)")
-    print(f"   > ค่า BMI ที่ทำนายได้   : {r['bmi']:.2f} [{r['bmi_cat']}]")
+    print("📷 [Stage 1] ประเมินจากใบหน้า (ViT Model + Morphometry)")
+    print(f"   > ค่า BMI ที่ทำนายได้   : {r['bmi']:.2f} (±{r['bmi_std']:.2f}) [{r['bmi_cat']}]")
+    m = r['morphometry']
+    print(f"   > Morphometry: LFWR={m['LFWR']:.2f}, CJWR={m['CJWR']:.2f}, PAR={m['PAR']:.2f}")
     print("📊 [Stage 1.5] ประเมินไขมัน (XGBoost)")
     print(f"   > ค่าดิบก่อนปรับ        : {r['raw_bodyfat']:.2f} %")
     print(f"   > เปอร์เซ็นต์ไขมันรวม    : {r['bodyfat']:.2f} % [{r['bf_cat']}]")

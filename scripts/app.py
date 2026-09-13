@@ -4,10 +4,9 @@ app.py — AI Health Screening Dashboard
 """
 import os
 import sys
-
-import torch
 from datetime import datetime
 
+import torch
 import streamlit as st
 import plotly.graph_objects as go
 
@@ -47,7 +46,7 @@ st.markdown("""
  .b-lean{background:#dbeafe;color:#1d4ed8}.b-fit{background:#dcfce7;color:#15803d}
  .risk-card{border-radius:16px;padding:22px 24px;margin-bottom:14px;border:1px solid;}
  .risk-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
- .risk-name{font-size:16px;font-weight:600;color:#0f172a;}
+ .risk-name{font-size:16px;font-weight:600;color:#ffffff;}
  .risk-pct{font-size:30px;font-weight:700;}
  .risk-bar{height:11px;background:#e2e8f0;border-radius:99px;overflow:hidden;}
  .risk-fill{height:100%;border-radius:99px;transition:width .6s ease;}
@@ -67,7 +66,6 @@ st.markdown("""
    background:#fff;border:1.5px solid #0891b2;color:#0891b2;}
 </style>""", unsafe_allow_html=True)
 
-
 # ══════════════════════════════════════════════════════════
 # CACHED RESOURCES
 # ══════════════════════════════════════════════════════════
@@ -75,38 +73,87 @@ st.markdown("""
 def get_models():
     return load_all_models()
 
-
 @st.cache_resource(show_spinner=False)
 def warm_face_backend():
     return fg.get_backend_name()
 
-
 @st.cache_data(show_spinner=False, max_entries=8)
 def cached_face_check(img_bytes: bytes):
-    """cache ตาม bytes ของภาพ → ไม่ต้องตรวจซ้ำทุก rerun"""
     from predict_pipeline import to_pil
     img = to_pil(img_bytes)
     rep = fg.check_face(img)
     preview = fg.draw_boxes(img, rep.faces) if rep.faces else img
     return rep, preview
 
-
 # ══════════════════════════════════════════════════════════
 # CHART HELPERS
 # ══════════════════════════════════════════════════════════
 def gauge(value, rng, steps, title, suffix=""):
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number", value=round(value, 1),
-        number={"suffix": suffix, "font": {"size": 34, "color": "#0f172a"}},
-        title={"text": title, "font": {"size": 13, "color": "#64748b"}},
-        gauge={"axis": {"range": rng, "tickwidth": 1, "tickcolor": "#cbd5e1",
-                        "tickfont": {"size": 10, "color": "#94a3b8"}},
-               "bar": {"color": "#0f172a", "thickness": 0.22},
-               "bgcolor": "rgba(0,0,0,0)", "borderwidth": 0, "steps": steps}))
-    fig.update_layout(height=225, margin=dict(l=25, r=25, t=45, b=10),
-                      paper_bgcolor="rgba(0,0,0,0)")
+    val_text = f"{value:.1f}{suffix}"
+    fig = go.Figure()
+    
+    # วาดเฉพาะเกจวัด (ไม่ใช้ mode="+number" เพื่อกันตัวเลขโดนผลักไปขวา)
+    fig.add_trace(go.Indicator(
+        mode="gauge",
+        value=value,
+        title={"text": title, "font": {"size": 14, "color": "#94a3b8"}},
+        gauge={
+            "axis": {"range": rng, "tickwidth": 1, "tickcolor": "#cbd5e1",
+                     "tickfont": {"size": 10, "color": "#94a3b8"}},
+            "bar": {"color": "#38bdf8", "thickness": 0.22},
+            "bgcolor": "rgba(0,0,0,0)",
+            "borderwidth": 0,
+            "steps": steps
+        }
+    ))
+    
+    # ตรึงตัวเลขไว้ตรงกลางช่องครึ่งวงกลมพอดี 100%
+    fig.add_annotation(
+        x=0.5, y=0.22,
+        text=val_text,
+        showarrow=False,
+        font=dict(size=34, color="#ffffff", family="Arial Black, sans-serif")
+    )
+    
+    fig.update_layout(
+        height=220,
+        margin=dict(l=20, r=20, t=40, b=10),
+        paper_bgcolor="rgba(0,0,0,0)"
+    )
     return fig
 
+
+def mini_gauge(value, rng, steps, title):
+    val_text = f"{value:.2f}"
+    fig = go.Figure()
+    
+    fig.add_trace(go.Indicator(
+        mode="gauge",
+        value=value,
+        title={"text": title, "font": {"size": 12, "color": "#cbd5e1"}},
+        gauge={
+            "axis": {"range": rng, "tickwidth": 1, "tickcolor": "#64748b",
+                     "tickfont": {"size": 9, "color": "#94a3b8"}},
+            "bar": {"color": "#38bdf8", "thickness": 0.25},
+            "bgcolor": "rgba(0,0,0,0)",
+            "borderwidth": 0,
+            "steps": steps
+        }
+    ))
+    
+    fig.add_annotation(
+        x=0.5, y=0.18,
+        text=val_text,
+        showarrow=False,
+        font=dict(size=20, color="#ffffff", family="Arial Black, sans-serif")
+    )
+    
+    fig.update_layout(
+        height=160,
+        margin=dict(l=10, r=10, t=30, b=5),
+        paper_bgcolor="rgba(0,0,0,0)"
+    )
+    return fig
 
 def render_risk(name, pct, level, desc):
     st.markdown(f"""
@@ -121,7 +168,6 @@ def render_risk(name, pct, level, desc):
       <div class="risk-label" style="color:{level['color']};">{level['label']}</div>
     </div>""", unsafe_allow_html=True)
 
-
 # ══════════════════════════════════════════════════════════
 # HERO
 # ══════════════════════════════════════════════════════════
@@ -130,12 +176,12 @@ st.markdown("""
   <h1>🩺 AI Health Screening</h1>
   <p>คัดกรองสุขภาพเบื้องต้นจากภาพใบหน้า ด้วย Vision Transformer + XGBoost</p>
   <div class="hero-chips">
-    <span class="chip">🛡️ Face Guard</span>
+    <span class="chip">🛡️ Two-Tier Safety Guard</span>
+    <span class="chip">🧬 Explainable Morphometry</span>
     <span class="chip">📷 Face → BMI</span>
     <span class="chip">📊 Body Fat %</span>
     <span class="chip">🩸 Diabetes</span>
     <span class="chip">💓 Hypertension</span>
-    <span class="chip">📄 Export PDF</span>
   </div>
 </div>""", unsafe_allow_html=True)
 
@@ -148,7 +194,6 @@ BACKEND = warm_face_backend()
 BACKEND_LABEL = {"mediapipe": "MediaPipe BlazeFace",
                  "opencv": "OpenCV Haar Cascade",
                  "none": "ปิดใช้งาน (ไม่พบไลบรารี)"}[BACKEND]
-
 
 # ══════════════════════════════════════════════════════════
 # INPUT
@@ -166,7 +211,7 @@ with col_in:
         captured = st.camera_input("ถ่ายภาพใบหน้า")
     image_input = uploaded or captured
 
-    # ---------- FACE GUARD (ตรวจทันทีที่มีภาพ) ----------
+    # ---------- FACE GUARD ----------
     guard_rep, guard_preview, img_bytes = None, None, None
     if image_input is not None:
         img_bytes = image_input.getvalue()
@@ -194,7 +239,7 @@ with col_in:
         format_func=lambda k: f"{LIFESTYLE_META[k]['icon']}  {LIFESTYLE_META[k]['title']}",
         captions=[LIFESTYLE_META[k]["subtitle"] for k in ls_order])
 
-    with st.expander("⚙️ ตัวเลือกขั้นสูง — เพิ่มความแม่นยำ (ไม่บังคับ)"):
+    with st.expander("⚙️ ตัวเลือกขั้นสูง (ไม่บังคับ)"):
         st.caption("หากคุณมีสายวัด การใส่รอบเอวจะทำให้ระบบสลับไปใช้โมเดลชุดเต็ม "
                    "ซึ่งประเมินไขมันช่องท้องและความเสี่ยงได้แม่นยำขึ้น")
         use_waist = st.toggle("📏 ฉันมีสายวัด และต้องการใส่รอบเอว", value=False)
@@ -208,8 +253,20 @@ with col_in:
                            help=f"Backend: {BACKEND_LABEL}")
         st.caption(f"เครื่องมือตรวจจับที่ใช้งานอยู่: **{BACKEND_LABEL}**")
 
+    # แสดงปุ่ม Checkbox ให้ติ๊ก Bypass ทันทีเมื่อมีการอัปโหลดภาพ
+    bypass_guard = False
+    if image_input is not None:
+        has_issue = (guard_rep is not None and (not guard_rep.ok or len(guard_rep.warnings) > 0))
+        if has_issue:
+            st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
+            bypass_guard = st.checkbox(
+                "⚠️ **ยินยอมข้ามการตรวจสอบคุณภาพภาพถ่าย (Bypass Guard)** เพื่อทำการวิเคราะห์ต่อ",
+                value=False,
+                help="เปิดใช้งานเพื่อบังคับให้ระบบประมวลผลต่อ แม้ภาพจะมีความเบลอ เอียง หรือหันข้างเกินเกณฑ์"
+            )
+
     can_run = image_input is not None and (
-        not strict or guard_rep is None or guard_rep.ok)
+        not strict or bypass_guard or guard_rep is None or guard_rep.ok)
 
     st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
     run = st.button("🔍 เริ่มวิเคราะห์สุขภาพ", use_container_width=True,
@@ -217,16 +274,17 @@ with col_in:
     if image_input is None:
         st.caption("⬆️ กรุณาอัปโหลดหรือถ่ายภาพใบหน้าก่อนเริ่มวิเคราะห์")
     elif strict and guard_rep is not None and not guard_rep.ok:
-        st.caption("🚫 ภาพไม่ผ่านการตรวจสอบ — กรุณาเปลี่ยนภาพก่อน")
-
-
+        if bypass_guard:
+            st.caption("⚠️ คุณเปิดใช้งาน Bypass — สามารถกดวิเคราะห์ต่อได้ (ผลลัพธ์อาจคลาดเคลื่อน)")
+        else:
+            st.caption("🚫 ภาพไม่ผ่านการตรวจสอบ — กรุณาเปลี่ยนภาพ หรือเปิด 'ตัวเลือกขั้นสูง' เพื่อติ๊กข้ามการตรวจ")
 with col_prev:
     st.markdown('<div class="card-title">ภาพที่เลือก</div>', unsafe_allow_html=True)
     if guard_preview is not None:
-        st.image(guard_preview, use_container_width=True,
+        st.image(guard_preview, use_column_width=True,
                  caption="กรอบฟ้า = ใบหน้าที่ระบบตรวจพบ")
     elif image_input is not None:
-        st.image(image_input, use_container_width=True)
+        st.image(image_input, use_column_width=True)
     else:
         st.markdown("""
         <div style="border:2px dashed #cbd5e1;border-radius:16px;height:300px;
@@ -236,7 +294,6 @@ with col_prev:
           <div style="font-size:14px;margin-top:8px;">ยังไม่มีภาพ</div>
         </div>""", unsafe_allow_html=True)
 
-    # ---------- ผลตรวจใบหน้า ----------
     if guard_rep is not None:
         st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
         if guard_rep.ok:
@@ -252,41 +309,31 @@ with col_prev:
         else:
             st.markdown(f'<div class="guard-bad">🚫 <b>{guard_rep.message}</b><br>'
                         f'{guard_rep.hint}</div>', unsafe_allow_html=True)
-            if guard_rep.code == "MULTIPLE_FACES":
-                st.info("💡 ถ้าต้องการประเมินคนที่ใหญ่ที่สุดในภาพ ให้ปิด Face Guard "
-                        "ในเมนู ‘ตัวเลือกขั้นสูง’")
-
-    st.markdown(f"""
-    <div style="margin-top:14px;font-size:12.5px;color:#64748b;line-height:1.7;">
-      <b>เคล็ดลับให้ผลแม่นยำ</b><br>
-      • หันหน้าตรง มองกล้อง<br>• แสงสว่างสม่ำเสมอ ไม่ย้อนแสง<br>
-      • ไม่สวมแว่นกันแดด / หน้ากาก<br>• ใบหน้าเต็มเฟรม ไม่เบลอ<br><br>
-      <span style="color:#94a3b8;">⚙️ ประมวลผลบน <b>{get_device().upper()}</b>
-      · Face Guard: <b>{BACKEND_LABEL}</b></span>
-    </div>""", unsafe_allow_html=True)
-
 
 # ══════════════════════════════════════════════════════════
-# RUN
+# RUN PREDICTION
 # ══════════════════════════════════════════════════════════
 if run and image_input is not None:
-    with st.spinner("🧠 AI กำลังวิเคราะห์... (โหลดโมเดลครั้งแรกอาจใช้เวลาสักครู่)"):
+    with st.spinner("🧠 AI กำลังวิเคราะห์สรีรวิทยาและคัดกรองโรค..."):
         try:
+            use_guard = strict and not bypass_guard
             st.session_state["result"] = predict_health_risk(
                 image=img_bytes, age=int(age), gender=gender,
                 waist_cm=waist_cm, lifestyle=lifestyle,
-                models=get_models(), face_guard=strict)
-            st.session_state.pop("pdf", None)   # ล้าง PDF เก่า
+                models=get_models(), face_guard=use_guard)
+            st.session_state.pop("pdf", None)
         except FaceGuardError as e:
             st.session_state.pop("result", None)
             st.error(f"🚫 {e.report.message}\n\n{e.report.hint}")
+        except ValueError as e:
+            st.session_state.pop("result", None)
+            st.error(f"🚫 {e}")
         except Exception as e:
             st.session_state.pop("result", None)
             st.error(f"เกิดข้อผิดพลาดระหว่างวิเคราะห์: {type(e).__name__}: {e}")
 
-
 # ══════════════════════════════════════════════════════════
-# RESULT
+# DISPLAY RESULT (วางโค้ดทั้งหมดไว้ใต้บล็อก if res:)
 # ══════════════════════════════════════════════════════════
 res = st.session_state.get("result")
 if res:
@@ -296,10 +343,8 @@ if res:
     with h1:
         st.markdown("### 📋 ผลการวิเคราะห์")
     with h2:
-        # ---------- PDF EXPORT ----------
         if not fonts_available():
-            st.caption("⚠️ ไม่พบฟอนต์ไทย — PDF จะออกเป็นภาษาอังกฤษ "
-                       "(วาง Sarabun-Regular.ttf ที่ assets/fonts/)")
+            st.caption("⚠️ ไม่พบฟอนต์ไทย — PDF จะออกเป็นภาษาอังกฤษ")
         if st.button("📄 สร้างรายงาน PDF", use_container_width=True):
             with st.spinner("กำลังสร้างเอกสาร..."):
                 pdf_bytes, err = safe_build_pdf(res, include_photo=True)
@@ -329,7 +374,7 @@ if res:
 
     g1, g2 = st.columns(2, gap="large")
     with g1:
-        st.markdown('<div class="card-title">📷 Stage 1 — BMI จากใบหน้า (ViT)</div>',
+        st.markdown('<div class="card-title">📷 Stage 1 — BMI จากใบหน้า (ViT + MC Dropout)</div>',
                     unsafe_allow_html=True)
         st.plotly_chart(gauge(res["bmi"], [12, 40], [
             {"range": [12, 18.5], "color": "#dbeafe"},
@@ -338,7 +383,10 @@ if res:
             {"range": [25, 40], "color": "#fecaca"}], "Body Mass Index"),
             use_container_width=True, config={"displayModeBar": False})
         st.markdown(f'<div style="text-align:center;"><span class="badge '
-                    f'b-{res["bmi_key"]}">{res["bmi_cat"]}</span></div>',
+                    f'b-{res["bmi_key"]}">{res["bmi_cat"]}</span>'
+                    f'<div style="font-size:12px;color:#64748b;margin-top:6px;">'
+                    f'Epistemic Uncertainty: ±{res["bmi_std"]:.2f} (95% CI: [{res["ci_range"][0]:.1f} - {res["ci_range"][1]:.1f}])</div>'
+                    f'</div>',
                     unsafe_allow_html=True)
     with g2:
         st.markdown('<div class="card-title">📊 Stage 1.5 — เปอร์เซ็นต์ไขมัน (XGBoost)</div>',
@@ -354,6 +402,89 @@ if res:
                 "normal": "b-normal", "obese": "b-obese"}[res["bf_key"]]
         st.markdown(f'<div style="text-align:center;"><span class="badge '
                     f'{bcls}">{res["bf_cat"]}</span></div>', unsafe_allow_html=True)
+
+    # ---------- โครงสร้างกายวิภาคใบหน้า (EXPLAINABLE MORPHOMETRY GAUGE) ----------
+    morph = res.get("morphometry")
+    if morph:
+        st.markdown('<div style="height:20px"></div>', unsafe_allow_html=True)
+        st.subheader("🧬 การตีความสรีรวิทยาใบหน้า (Explainable Facial Morphometry)")
+        
+        m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+        
+        with m_col1:
+            # LFWR: ปกติ 0.8 - 1.1 (ยิ่งต่ำ = ไขมันสะสมน้อย)
+            st.plotly_chart(mini_gauge(
+                morph['LFWR'], [0.7, 1.4], [
+                    {"range": [0.7, 1.0], "color": "#bbf7d0"},
+                    {"range": [1.0, 1.15], "color": "#fef08a"},
+                    {"range": [1.15, 1.4], "color": "#fecaca"}
+                ], "LFWR (กรามล่าง/ความสูง)"
+            ), use_container_width=True, config={"displayModeBar": False})
+            st.caption("<div style='text-align:center; font-size:11px; color:#94a3b8;'>สัมพันธ์กับ Visceral Fat (Lee 2014)</div>", unsafe_allow_html=True)
+
+        with m_col2:
+            # CJWR: ปกติ 1.15 - 1.45 (ยิ่งสูง = โหนกแก้มเด่น ไขมันแก้มล่างน้อย)
+            st.plotly_chart(mini_gauge(
+                morph['CJWR'], [0.9, 1.6], [
+                    {"range": [0.9, 1.1], "color": "#fecaca"},
+                    {"range": [1.1, 1.25], "color": "#fef08a"},
+                    {"range": [1.25, 1.6], "color": "#bbf7d0"}
+                ], "CJWR (โหนกแก้ม/กราม)"
+            ), use_container_width=True, config={"displayModeBar": False})
+            st.caption("<div style='text-align:center; font-size:11px; color:#94a3b8;'>ตรวจจับไขมันแก้มล่าง (Coetzee 2009)</div>", unsafe_allow_html=True)
+
+        with m_col3:
+            # PAR: ความมนกลมกรอบหน้า
+            st.plotly_chart(mini_gauge(
+                morph['PAR'], [1.5, 4.0], [
+                    {"range": [1.5, 2.3], "color": "#bbf7d0"},
+                    {"range": [2.3, 3.0], "color": "#fef08a"},
+                    {"range": [3.0, 4.0], "color": "#fecaca"}
+                ], "PAR (ความกลมของกราม)"
+            ), use_container_width=True, config={"displayModeBar": False})
+            st.caption("<div style='text-align:center; font-size:11px; color:#94a3b8;'>ความมนกลมของหน้าล่าง (Wen 2013)</div>", unsafe_allow_html=True)
+
+        with m_col4:
+            # FWHR: มิติใบหน้าส่วนกลาง
+            st.plotly_chart(mini_gauge(
+                morph['FWHR'], [1.4, 2.6], [
+                    {"range": [1.4, 1.8], "color": "#bbf7d0"},
+                    {"range": [1.8, 2.1], "color": "#fef08a"},
+                    {"range": [2.1, 2.6], "color": "#fecaca"}
+                ], "FWHR (กว้าง/สูงใบหน้า)"
+            ), use_container_width=True, config={"displayModeBar": False})
+            st.caption("<div style='text-align:center; font-size:11px; color:#94a3b8;'>มิติกระดูกและไขมันแก้มส่วนบน</div>", unsafe_allow_html=True)
+
+        # ---------- DYNAMIC CLINICAL INTERPRETATION ----------
+        lfwr_val = morph['LFWR']
+        cjwr_val = morph['CJWR']
+        par_val = morph['PAR']
+
+        findings = []
+        risk_notes = []
+
+        # 1. วิเคราะห์แนวกรามและไขมันช่วงล่าง (LFWR & CJWR)
+        if cjwr_val >= 1.22 and lfwr_val <= 0.98:
+            findings.append("🔹 **โครงสร้างใบหน้าลีน/คมชัด (Chiseled Phenotype):** โหนกแก้มเด่นชัดเมื่อเทียบกับขากรรไกรล่าง ไม่พบการสะสมของถุงไขมันกระพุ้งแก้ม (Buccal Fat) หรือรอยพับใต้คาง")
+        elif cjwr_val < 1.12 or lfwr_val > 1.10:
+            findings.append("⚠️ **การสะสมไขมันช่วงล่างใบหน้า (Lower Facial Adiposity):** ขากรรไกรล่างกว้างขึ้นเมื่อเทียบกับโหนกแก้ม บ่งชี้การขยายตัวของชั้นไขมันใต้ผิวหนัง (Buccal & Jowl Fat Pads)")
+            risk_notes.append("สัดส่วนใบหน้าส่วนล่างที่หนาขึ้น ทางการแพทย์ (Lee & Kim 2014) พบว่ามีความสัมพันธ์เชิงบวกกับภาวะไขมันสะสมในช่องท้อง (Visceral Adiposity)")
+        else:
+            findings.append("🔹 **สัดส่วนโครงหน้าสมดุล (Balanced Structure):** การกระจายตัวของเนื้อเยื่อและกล้ามเนื้อใบหน้าอยู่ในเกณฑ์มาตรฐานประชากรทั่วไป")
+
+        # 2. วิเคราะห์ความกลมมนของกรอบหน้า (PAR)
+        if par_val >= 2.8:
+            findings.append("🔹 **รูปทรงกรอบหน้ามีความมนกลม (Rounded Contour):** เส้นรอบรูปกรอบหน้าส่วนล่างกลืนเป็นแนวโค้ง สะท้อนการสะสมของไขมันเนื้อเยื่อรอบแนวกราม")
+        elif par_val <= 2.2:
+            findings.append("🔹 **กรอบกระดูกกรามและคางเด่นชัด (Angular Jawline):** ปรากฏรอยต่อกระดูกขากรรไกรชัดเจน สัมพันธ์กับผู้ที่มีเปอร์เซ็นต์ไขมันต่ำหรือมวลกล้ามเนื้อสูง")
+
+        # รวมข้อความสรุป
+        summary_text = "\n\n".join(findings)
+        if risk_notes:
+            summary_text += "\n\n💡 **ข้อสังเกตทางสรีรวิทยา:** " + " ".join(risk_notes)
+
+        st.info(f"🧬 **การประเมินลักษณะทางกายวิภาค (Anatomical Insight)**\n\n{summary_text}")
+    
 
     st.markdown('<div style="height:20px"></div>', unsafe_allow_html=True)
     d, ls = res["calibration_delta"], res["lifestyle_meta"]
@@ -401,6 +532,7 @@ if res:
 | โหมดการประเมิน | {res['mode_text']} |
 | โมเดล Body Fat | `{'with_waist' if res['has_waist'] else 'no_waist'}` |
 {face_line}| BMI (ViT output) | `{res['bmi']:.4f}` |
+| Epistemic Uncertainty (±SD) | `±{res['bmi_std']:.4f}` |
 | Body Fat ดิบ | `{res['raw_bodyfat']:.4f}%` |
 | Calibration Delta | `{res['calibration_delta']:+.2f}%` |
 | Body Fat หลังปรับ | `{res['bodyfat']:.4f}%` |
