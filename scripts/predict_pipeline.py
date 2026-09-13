@@ -1,15 +1,11 @@
 """
-predict_pipeline.py  (v2 - Web-Ready)
+predict_pipeline.py  (v3 - Web-Ready + MC Dropout)
 ──────────────────────────────────────────────────────────────
-สิ่งที่แก้จากเวอร์ชันเดิม:
-  [1] load_all_models() แยกออกมาให้เรียกครั้งเดียวได้ (cache ได้)
-  [2] predict_health_risk() คืน dict แทน print() → ใช้กับ UI ได้
-  [3] Path ใช้ pathlib อ้างอิงจากตำแหน่งไฟล์ → ไม่พังเมื่อเปลี่ยน cwd
-  [4] รับภาพได้ทั้ง path / bytes / PIL.Image / file-like object
-  [5] แก้ EXIF rotation อัตโนมัติ (รูปจากมือถือ)
-  [6] เพิ่ม Face Detection Guard (optional)
-  [7] validate input (อายุ, รอบเอว, lifestyle)
-  [8] CLI เดิมยังใช้ได้ผ่าน print_report()
+สิ่งที่แก้จากเวอร์ชันเดิม (v2):
+  [9] เพิ่ม Monte Carlo Dropout (MC Dropout) สำหรับประเมิน "ความไม่แน่นอน"
+      (uncertainty) ของค่า BMI ที่โมเดลทำนาย พร้อม propagate ต่อไปยัง
+      body fat / diabetes / hypertension เพื่อให้ได้ confidence interval
+      ของผลลัพธ์ปลายทางทั้งหมด ไม่ใช่แค่ BMI
 ──────────────────────────────────────────────────────────────
 """
 from __future__ import annotations
@@ -20,8 +16,10 @@ from pathlib import Path
 from typing import Optional, Union, Any
 
 import joblib
+import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
 from PIL import Image, ImageOps
 
 from torchvision.transforms import ToTensor
@@ -31,7 +29,7 @@ from models import get_model
 warnings.filterwarnings("ignore", category=UserWarning)
 
 # ══════════════════════════════════════════════════════════
-# [FIX 3] PATH CONFIG — อ้างอิงจากไฟล์นี้ ไม่ใช่ current working directory
+# PATH CONFIG — อ้างอิงจากไฟล์นี้ ไม่ใช่ current working directory
 # ══════════════════════════════════════════════════════════
 BASE_DIR = Path(__file__).resolve().parent
 WEIGHTS_DIR = (BASE_DIR.parent / "weights").resolve()
@@ -47,7 +45,7 @@ WEIGHT_FILES = {
 }
 
 # ══════════════════════════════════════════════════════════
-# CONFIG: Lifestyle Calibration (แยกเป็น config → แก้ง่าย ไม่ต้องไล่หา if-else)
+# CONFIG: Lifestyle Calibration
 # ══════════════════════════════════════════════════════════
 LIFESTYLE_META = {
     "active": {
@@ -81,6 +79,9 @@ LIFESTYLE_META = {
 BODYFAT_FLOOR = 5.0    # Essential fat — เพดานล่างเชิงสรีรวิทยา
 RISK_THRESHOLD = 50.0  # เกณฑ์ "เสี่ยงสูง" ตาม pipeline เดิม
 
+# ค่า z-score สำหรับช่วงความเชื่อมั่นที่ใช้บ่อย (สมมติ distribution ~ normal)
+_Z_TABLE = {0.80: 1.282, 0.90: 1.645, 0.95: 1.960, 0.99: 2.576}
+
 
 # ══════════════════════════════════════════════════════════
 # UTILITIES
@@ -99,7 +100,7 @@ def check_weights() -> list[str]:
 
 
 # ══════════════════════════════════════════════════════════
-# [FIX 1] LOAD MODELS — เรียกครั้งเดียว แล้วส่ง dict ไปใช้ซ้ำ
+# LOAD MODELS — เรียกครั้งเดียว แล้วส่ง dict ไปใช้ซ้ำ
 # ══════════════════════════════════════════════════════════
 def load_all_models(device: Optional[str] = None, verbose: bool = False) -> dict:
     device = device or get_device()
@@ -129,7 +130,72 @@ def load_all_models(device: Optional[str] = None, verbose: bool = False) -> dict
 
 
 # ══════════════════════════════════════════════════════════
-# [FIX 4+5] IMAGE LOADER — รับได้ทุกรูปแบบ + แก้ EXIF
+# [NEW] MONTE CARLO DROPOUT
+# ══════════════════════════════════════════════════════════
+def enable_mc_dropout(model: nn.Module) -> None:
+    """
+    เปิดเฉพาะเลเยอร์ nn.Dropout ให้ทำงานแบบ train() (สุ่ม mask ทุกครั้งที่ forward)
+    โดยส่วนอื่นของโมเดล (ViT backbone ที่ freeze ไว้, LayerNorm ฯลฯ) ยังอยู่ใน eval()
+
+    สำคัญ: ต้องเรียก model.eval() ก่อนเสมอ แล้วค่อยเรียกฟังก์ชันนี้ทับ
+    ไม่ใช้ model.train() ตรงๆ เพราะจะไปกระทบ behavior ของเลเยอร์อื่นด้วย
+    """
+    model.eval()
+    for module in model.modules():
+        if isinstance(module, nn.Dropout):
+            module.train()
+
+
+def _z_score(ci: float) -> float:
+    return _Z_TABLE.get(round(float(ci), 2), 1.960)
+
+
+def _summarize(arr: np.ndarray, ci: float = 0.95) -> dict:
+    mean = float(arr.mean())
+    std = float(arr.std(ddof=1)) if len(arr) > 1 else 0.0
+    z = _z_score(ci)
+    lo_pct = (1 - ci) / 2 * 100
+    hi_pct = 100 - lo_pct
+    return {
+        "mean": mean,
+        "std": std,
+        "ci": ci,
+        # ช่วงความเชื่อมั่นแบบ parametric (normal approx จาก mean ± z*std)
+        "ci_normal": (mean - z * std, mean + z * std),
+        # ช่วงความเชื่อมั่นแบบ empirical percentile (ไม่ต้องสมมติ distribution)
+        "ci_percentile": (float(np.percentile(arr, lo_pct)),
+                           float(np.percentile(arr, hi_pct))),
+        "min": float(arr.min()),
+        "max": float(arr.max()),
+        "n_samples": int(len(arr)),
+    }
+
+
+def mc_dropout_bmi(
+    img_tensor: torch.Tensor,
+    vit_model: nn.Module,
+    n_samples: int = 30,
+) -> np.ndarray:
+    """
+    รัน forward pass ซ้ำ n_samples ครั้งโดยเปิด dropout ค้างไว้ (MC Dropout)
+    คืนค่าเป็น array ของ BMI ที่ทำนายได้ในแต่ละรอบ (ยังไม่ aggregate)
+
+    หมายเหตุ: ต้องเรียกด้วย img_tensor เดิม (deterministic input) ความแตกต่าง
+    ระหว่างรอบมาจาก dropout mask ที่สุ่มใหม่ทุกครั้งเท่านั้น
+    """
+    enable_mc_dropout(vit_model)
+    samples = np.empty(n_samples, dtype=np.float64)
+    try:
+        with torch.no_grad():
+            for i in range(n_samples):
+                samples[i] = float(vit_model(img_tensor).item())
+    finally:
+        vit_model.eval()  # คืนโมเดลให้อยู่ใน eval mode ปกติเสมอ แม้เกิด error
+    return samples
+
+
+# ══════════════════════════════════════════════════════════
+# IMAGE LOADER — รับได้ทุกรูปแบบ + แก้ EXIF
 # ══════════════════════════════════════════════════════════
 def to_pil(image: Union[str, Path, bytes, bytearray, Image.Image, Any]) -> Image.Image:
     if isinstance(image, Image.Image):
@@ -147,7 +213,7 @@ def to_pil(image: Union[str, Path, bytes, bytearray, Image.Image, Any]) -> Image
     else:
         raise TypeError(f"ไม่รองรับ input ชนิด {type(image).__name__}")
 
-    img = ImageOps.exif_transpose(img)    # [FIX 5] แก้รูปหมุนจากมือถือ
+    img = ImageOps.exif_transpose(img)    # แก้รูปหมุนจากมือถือ
     return img.convert("RGB")
 
 
@@ -185,7 +251,7 @@ def get_risk_level(pct: float) -> dict:
         return {"label": "ความเสี่ยงต่ำ", "key": "low",
                 "color": "#16a34a", "bg": "#dcfce7", "icon": "🟢",
                 "rgb": (22, 163, 74)}
-    if pct < RISK_THRESHOLD: # (RISK_THRESHOLD คือ 50)
+    if pct < RISK_THRESHOLD:
         return {"label": "เฝ้าระวัง", "key": "watch",
                 "color": "#ca8a04", "bg": "#fef9c3", "icon": "🟡",
                 "rgb": (202, 138, 4)}
@@ -199,7 +265,7 @@ def get_risk_level(pct: float) -> dict:
 
 
 # ══════════════════════════════════════════════════════════
-# [FIX 2] MAIN PREDICTION — คืน dict แทน print
+# MAIN PREDICTION — คืน dict; รองรับ MC Dropout uncertainty (opt-in)
 # ══════════════════════════════════════════════════════════
 def predict_health_risk(
     image: Union[str, Path, bytes, Image.Image, Any],
@@ -209,8 +275,11 @@ def predict_health_risk(
     lifestyle: str = "normal",
     models: Optional[dict] = None,
     face_guard: bool = True,
+    mc_dropout: bool = False,
+    mc_samples: int = 30,
+    mc_ci: float = 0.95,
 ) -> dict:
-    # ---------- [FIX 7] Validate ----------
+    # ---------- Validate ----------
     age = int(age)
     if not (10 <= age <= 100):
         raise ValueError("อายุต้องอยู่ระหว่าง 10–100 ปี")
@@ -226,15 +295,18 @@ def predict_health_risk(
         if not (40.0 <= waist_cm <= 200.0):
             raise ValueError("รอบเอวต้องอยู่ระหว่าง 40–200 ซม.")
 
+    if mc_dropout and mc_samples < 2:
+        raise ValueError("mc_samples ต้องมีอย่างน้อย 2 รอบ")
+
     gender_num = 1 if str(gender).lower() == "male" else 0
 
     models = models or load_all_models()
     device = models.get("_device", get_device())
 
-    # ---------- [FIX 4] Load image ----------
+    # ---------- Load image ----------
     img = to_pil(image)
 
-    # ---------- [FIX 6] FACE GUARD ----------
+    # ---------- FACE GUARD ----------
     face_report = None
     if face_guard:
         from face_guard import check_face
@@ -242,10 +314,12 @@ def predict_health_risk(
         if not face_report.ok:
             raise FaceGuardError(face_report)
 
-    # ---------- STAGE 1: Face → BMI (ViT) ----------
+    # ---------- STAGE 1: Face → BMI (ViT), deterministic point estimate ----------
+    vit_model = models["vit"]
+    vit_model.eval()  # การันตี dropout ปิดสำหรับค่าประเมินหลัก (ไม่เปลี่ยนพฤติกรรมเดิม)
     img_tensor = vit_transforms(ToTensor()(img)).unsqueeze(0).to(device)
     with torch.no_grad():
-        pred_bmi = float(models["vit"](img_tensor).item())
+        pred_bmi = float(vit_model(img_tensor).item())
 
     # ---------- STAGE 1.5: Body Fat (Dual Route) ----------
     if has_waist:
@@ -278,7 +352,7 @@ def predict_health_risk(
 
     shape = analyze_body_shape(pred_bmi, pred_bodyfat, gender)
 
-    return {
+    result = {
         "age": age, "gender": gender, "gender_num": gender_num,
         "waist_cm": waist_cm if has_waist else None,
         "has_waist": has_waist,
@@ -295,7 +369,54 @@ def predict_health_risk(
         "image": img,
         "face_report": face_report,
         "device": device,
+        "uncertainty": None,
     }
+
+    # ---------- [NEW] STAGE 3: Monte Carlo Dropout uncertainty (opt-in) ----------
+    if mc_dropout:
+        bmi_samples = mc_dropout_bmi(img_tensor, vit_model, n_samples=mc_samples)
+
+        n = len(bmi_samples)
+        ages_arr = np.full(n, age, dtype=np.float64)
+        genders_arr = np.full(n, gender_num, dtype=np.float64)
+
+        if has_waist:
+            waists_arr = np.full(n, waist_cm, dtype=np.float64)
+            df_bf_mc = pd.DataFrame({"BMI": bmi_samples, "AGE": ages_arr,
+                                      "GENDER_NUM": genders_arr, "WAIST_CM": waists_arr})
+            raw_bf_samples = models["bf_waist"].predict(df_bf_mc)
+        else:
+            df_bf_mc = pd.DataFrame({"BMI": bmi_samples, "AGE": ages_arr,
+                                      "GENDER_NUM": genders_arr})
+            raw_bf_samples = models["bf_nowaist"].predict(df_bf_mc)
+
+        bf_samples = np.maximum(BODYFAT_FLOOR, raw_bf_samples + ls_meta["delta"])
+
+        if has_waist:
+            df_ncd_mc = pd.DataFrame({
+                "AGE": ages_arr, "GENDER_NUM": genders_arr, "BMI": bmi_samples,
+                "WAIST_CM": waists_arr, "TOTAL_BODY_FAT_PCT": bf_samples,
+            })
+            diab_samples = models["diab_waist"].predict_proba(df_ncd_mc)[:, 1] * 100
+            hyp_samples = models["hyp_waist"].predict_proba(df_ncd_mc)[:, 1] * 100
+        else:
+            df_ncd_mc = pd.DataFrame({
+                "AGE": ages_arr, "GENDER_NUM": genders_arr, "BMI": bmi_samples,
+                "TOTAL_BODY_FAT_PCT": bf_samples,
+            })
+            diab_samples = models["diab_nowaist"].predict_proba(df_ncd_mc)[:, 1] * 100
+            hyp_samples = models["hyp_nowaist"].predict_proba(df_ncd_mc)[:, 1] * 100
+
+        result["uncertainty"] = {
+            "n_samples": mc_samples,
+            "ci": mc_ci,
+            "bmi": _summarize(bmi_samples, mc_ci),
+            "bodyfat": _summarize(bf_samples, mc_ci),
+            "diabetes_pct": _summarize(diab_samples, mc_ci),
+            "hypertension_pct": _summarize(hyp_samples, mc_ci),
+        }
+
+    return result
 
 
 class FaceGuardError(Exception):
@@ -306,7 +427,7 @@ class FaceGuardError(Exception):
 
 
 # ══════════════════════════════════════════════════════════
-# [FIX 8] CLI REPORT — คงพฤติกรรมเดิมของคุณไว้ทุกประการ
+# CLI REPORT — คงพฤติกรรมเดิมไว้ทุกประการ + แสดง uncertainty ถ้ามี
 # ══════════════════════════════════════════════════════════
 def print_report(r: dict) -> None:
     print("\n" + "=" * 60)
@@ -328,6 +449,20 @@ def print_report(r: dict) -> None:
     d, h = r["diabetes_level"], r["hypertension_level"]
     print(f"   > โรคเบาหวาน           : {r['diabetes_pct']:.1f}% ({d['icon']} {d['label']})")
     print(f"   > โรคความดันโลหิตสูง     : {r['hypertension_pct']:.1f}% ({h['icon']} {h['label']})")
+
+    u = r.get("uncertainty")
+    if u:
+        print("-" * 60)
+        print(f"🎲 [Stage 3] Monte Carlo Dropout (n={u['n_samples']}, CI={u['ci']*100:.0f}%)")
+        b = u["bmi"]
+        print(f"   > BMI                  : {b['mean']:.2f} ± {b['std']:.2f} "
+              f"(95%CI norm: {b['ci_normal'][0]:.2f}–{b['ci_normal'][1]:.2f})")
+        bf = u["bodyfat"]
+        print(f"   > Body Fat             : {bf['mean']:.2f}% ± {bf['std']:.2f}%")
+        dd = u["diabetes_pct"]
+        print(f"   > เบาหวาน (unc.)        : {dd['mean']:.1f}% ± {dd['std']:.1f}%")
+        hh = u["hypertension_pct"]
+        print(f"   > ความดัน (unc.)        : {hh['mean']:.1f}% ± {hh['std']:.1f}%")
     print("=" * 60 + "\n")
 
 
@@ -335,147 +470,11 @@ if __name__ == "__main__":
     test_image = BASE_DIR.parent / "data" / "test_images" / "testpic11.png"
     m = load_all_models(verbose=True)   # ✅ โหลดครั้งเดียว ใช้ซ้ำได้
 
-    print("\n>>> ทดสอบแบบที่ 1: ใส่รอบเอว <<<")
+    print("\n>>> ทดสอบแบบที่ 1: ใส่รอบเอว (ไม่มี MC Dropout) <<<")
     print_report(predict_health_risk(test_image, age=32, gender="Male",
                                      waist_cm=80.0, lifestyle="active", models=m))
 
-    print("\n>>> ทดสอบแบบที่ 2: ไม่ใส่รอบเอว <<<")
+    print("\n>>> ทดสอบแบบที่ 2: ไม่ใส่รอบเอว + MC Dropout (n=50) <<<")
     print_report(predict_health_risk(test_image, age=32, gender="Male",
-                                     waist_cm=None, lifestyle="active", models=m))
-
-# import torch
-# import joblib
-# import pandas as pd
-# from PIL import Image
-# from torchvision.transforms import ToTensor
-# from loader import vit_transforms
-# from models import get_model
-# import warnings
-# warnings.filterwarnings("ignore", category=UserWarning)
-
-# def load_all_models(device):
-#     print("กำลังโหลดระบบ AI ทั้งหมด...")
-#     vit_model = get_model().float().to(device)
-#     vit_model.load_state_dict(torch.load('../weights/aug_epoch_7.pt', map_location=device))
-#     vit_model.eval()
-
-#     # โหลดเตรียมไว้ทั้ง 2 ชุด (แบบมีเอว และ ไม่มีเอว)
-#     models = {
-#         'vit': vit_model,
-#         'bf_waist': joblib.load('../weights/xgboost_bodyfat_with_waist.pkl'),
-#         'bf_nowaist': joblib.load('../weights/xgboost_bodyfat_no_waist.pkl'),
-#         'diab_waist': joblib.load('../weights/xgb_classifier_diabetes.pkl'),
-#         'diab_nowaist': joblib.load('../weights/xgb_classifier_diabetes_no_waist.pkl'),
-#         'hyp_waist': joblib.load('../weights/xgb_classifier_hypertension.pkl'),
-#         'hyp_nowaist': joblib.load('../weights/xgb_classifier_hypertension_no_waist.pkl')
-#     }
-#     return models
-
-# def analyze_body_shape(bmi, body_fat, gender):
-#     if bmi < 18.5: bmi_cat = "น้ำหนักต่ำกว่าเกณฑ์"
-#     elif 18.5 <= bmi < 23.0: bmi_cat = "สมส่วน (Normal)"
-#     elif 23.0 <= bmi < 25.0: bmi_cat = "ท้วม (Overweight)"
-#     else: bmi_cat = "อ้วน (Obese)"
-        
-#     if gender.lower() == 'male' or gender == 1:
-#         if body_fat < 14: bf_cat = "กล้ามเนื้อชัด (Lean/Athlete)"
-#         elif 14 <= body_fat < 18: bf_cat = "หุ่นฟิต (Fitness)"
-#         elif 18 <= body_fat < 25: bf_cat = "ทั่วไป (Acceptable)"
-#         else: bf_cat = "อ้วน (Obese)"
-#     else:
-#         if body_fat < 21: bf_cat = "กล้ามเนื้อชัด (Lean/Athlete)"
-#         elif 21 <= body_fat < 25: bf_cat = "หุ่นฟิต (Fitness)"
-#         elif 25 <= body_fat < 32: bf_cat = "ทั่วไป (Acceptable)"
-#         else: bf_cat = "อ้วน (Obese)"
-#     return bmi_cat, bf_cat
-
-# # 💡 กำหนดให้ waist_cm=None เป็นค่าเริ่มต้น (Optional)
-# def predict_health_risk(image_path, age, gender, waist_cm=None, lifestyle='normal'):
-#     device = "cuda" if torch.cuda.is_available() else "cpu"
-#     models = load_all_models(device)
-#     gender_num = 1 if gender.lower() == 'male' else 0
-    
-#     lifestyle_map = {
-#         'active': 'ออกกำลังกายเป็นประจำ / มวลกล้ามเนื้อมาก (Active)',
-#         'sedentary': 'ไม่ออกกำลังกาย / อาจมีไขมันซ่อนรูป (Sedentary)',
-#         'normal': 'ทั่วไป / กิจกรรมปานกลาง (Normal)'
-#     }
-#     lifestyle_display = lifestyle_map.get(lifestyle.lower(), lifestyle_map['normal'])
-    
-#     # 💡 เช็กว่า User ใส่รอบเอวมาหรือไม่?
-#     has_waist = waist_cm is not None and waist_cm > 0
-#     mode_text = "ประเมินแบบเต็มรูปแบบ (ใช้รอบเอว)" if has_waist else "ประเมินแบบพื้นฐาน (ไม่ใช้รอบเอว)"
-    
-#     # --- STEP 1: Face -> BMI ---
-#     img = Image.open(image_path)
-#     if img.mode != 'RGB': img = img.convert('RGB')
-#     img_tensor = ToTensor()(img)
-#     img_tensor = vit_transforms(img_tensor).unsqueeze(0).to(device)
-    
-#     with torch.no_grad():
-#         pred_bmi = models['vit'](img_tensor).item() 
-        
-#     # --- STEP 1.5: Body Fat & NCDs (แยก Route ตามการใส่รอบเอว) ---
-#     if has_waist:
-#         # Route A: แบบมีรอบเอว
-#         df_bf = pd.DataFrame([[pred_bmi, age, gender_num, waist_cm]], columns=['BMI', 'AGE', 'GENDER_NUM', 'WAIST_CM'])
-#         raw_bodyfat = models['bf_waist'].predict(df_bf)[0]
-        
-#         # Calibrate Body Fat
-#         if lifestyle.lower() == 'active': pred_bodyfat = max(5.0, raw_bodyfat - 10.0)
-#         elif lifestyle.lower() == 'sedentary': pred_bodyfat = raw_bodyfat + 5.0
-#         else: pred_bodyfat = raw_bodyfat
-        
-#         df_ncd = pd.DataFrame([[age, gender_num, pred_bmi, waist_cm, pred_bodyfat]], columns=['AGE', 'GENDER_NUM', 'BMI', 'WAIST_CM', 'TOTAL_BODY_FAT_PCT'])
-#         diab_risk_pct = models['diab_waist'].predict_proba(df_ncd)[0][1] * 100
-#         hyp_risk_pct = models['hyp_waist'].predict_proba(df_ncd)[0][1] * 100
-        
-#     else:
-#         # Route B: แบบไม่มีรอบเอว
-#         df_bf = pd.DataFrame([[pred_bmi, age, gender_num]], columns=['BMI', 'AGE', 'GENDER_NUM'])
-#         raw_bodyfat = models['bf_nowaist'].predict(df_bf)[0]
-        
-#         # Calibrate Body Fat
-#         if lifestyle.lower() == 'active': pred_bodyfat = max(5.0, raw_bodyfat - 10.0)
-#         elif lifestyle.lower() == 'sedentary': pred_bodyfat = raw_bodyfat + 5.0
-#         else: pred_bodyfat = raw_bodyfat
-        
-#         df_ncd = pd.DataFrame([[age, gender_num, pred_bmi, pred_bodyfat]], columns=['AGE', 'GENDER_NUM', 'BMI', 'TOTAL_BODY_FAT_PCT'])
-#         diab_risk_pct = models['diab_nowaist'].predict_proba(df_ncd)[0][1] * 100
-#         hyp_risk_pct = models['hyp_nowaist'].predict_proba(df_ncd)[0][1] * 100
-
-#     bmi_cat, bf_cat = analyze_body_shape(pred_bmi, pred_bodyfat, gender)
-    
-#     # --- แสดงผลสรุป ---
-#     print("\n" + "="*60)
-#     print("🏥 สรุปผลการวิเคราะห์สุขภาพ AI Pipeline 🏥")
-#     print("="*60)
-#     waist_display = f"{waist_cm} ซม." if has_waist else "ไม่ได้ระบุ"
-#     print(f"ผู้รับการประเมิน: {gender.capitalize()}, อายุ {age} ปี, รอบเอว: {waist_display}")
-#     print(f"รูปแบบการใช้ชีวิต: {lifestyle_display}")
-#     print(f"โหมดการประเมิน: {mode_text}")
-#     print("-" * 60)
-    
-#     print(f"📷 [Stage 1] ประเมินจากใบหน้า (ViT Model)")
-#     print(f"   > ค่า BMI ที่ทำนายได้   : {pred_bmi:.2f} [{bmi_cat}]")
-#     print(f"📊 [Stage 1.5] ประเมินไขมัน (XGBoost)")
-#     print(f"   > เปอร์เซ็นต์ไขมันรวม    : {pred_bodyfat:.2f} % [{bf_cat}]")
-    
-#     print("-" * 60)
-#     print(f"🩺 [Stage 2] คัดกรองความเสี่ยงโรค NCDs")
-#     diab_status = "🔴 เสี่ยงสูง" if diab_risk_pct > 50 else "🟢 ปกติ"
-#     hyp_status = "🔴 เสี่ยงสูง" if hyp_risk_pct > 50 else "🟢 ปกติ"
-#     print(f"   > โรคเบาหวาน           : {diab_risk_pct:.1f}% ({diab_status})")
-#     print(f"   > โรคความดันโลหิตสูง     : {hyp_risk_pct:.1f}% ({hyp_status})")
-#     print("="*60 + "\n")
-
-# if __name__ == "__main__":
-#     test_image = "../data/test_images/testpic11.png"
-    
-#     # เทสต์แบบใส่รอบเอว
-#     print("\n>>> ทดสอบแบบที่ 1: ใส่รอบเอว <<<")
-#     predict_health_risk(test_image, age=32, gender='Male', waist_cm=80.0, lifestyle='active')
-    
-#     # เทสต์แบบ ไม่ใส่รอบเอว (Optional)
-#     print("\n>>> ทดสอบแบบที่ 2: ไม่ใส่รอบเอว (ทิ้งว่าง) <<<")
-#     predict_health_risk(test_image, age=32, gender='Male', waist_cm=None, lifestyle='active')
+                                     waist_cm=None, lifestyle="active", models=m,
+                                     mc_dropout=True, mc_samples=50))
