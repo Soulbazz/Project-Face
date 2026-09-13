@@ -316,6 +316,11 @@ def predict_health_risk(
     # แปลง PIL Image เป็นภาพ OpenCV BGR สำหรับตรวจสอบ Landmark
     img_bgr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
+    # ---------- [SAFETY LAYER 1] Aleatoric Proxy Check & Morphometry ----------
+    morph_data, aleatoric_err = extract_facial_morphometry(img_bgr)
+    if face_guard and aleatoric_err:
+        raise ValueError(f"[Aleatoric Rejection] ภาพไม่ได้มาตรฐาน: {aleatoric_err}")
+
     # ---------- FACE GUARD ----------
     face_report = None
     if face_guard:
