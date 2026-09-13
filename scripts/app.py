@@ -252,9 +252,9 @@ with col_in:
         strict = st.toggle("🛡️ เปิดระบบตรวจสอบใบหน้า (Face Guard)", value=True,
                            help=f"Backend: {BACKEND_LABEL}")
         st.caption(f"เครื่องมือตรวจจับที่ใช้งานอยู่: **{BACKEND_LABEL}**")
-
+        bypass_guard = st.checkbox("⚠️ ยินยอมข้ามการคัดกรองคุณภาพภาพ (Bypass) เพื่อทดสอบผลลัพธ์", value=False)
     can_run = image_input is not None and (
-        not strict or guard_rep is None or guard_rep.ok)
+        not strict or bypass_guard or guard_rep is None or guard_rep.ok)
 
     st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
     run = st.button("🔍 เริ่มวิเคราะห์สุขภาพ", use_container_width=True,
@@ -262,8 +262,10 @@ with col_in:
     if image_input is None:
         st.caption("⬆️ กรุณาอัปโหลดหรือถ่ายภาพใบหน้าก่อนเริ่มวิเคราะห์")
     elif strict and guard_rep is not None and not guard_rep.ok:
-        st.caption("🚫 ภาพไม่ผ่านการตรวจสอบ — กรุณาเปลี่ยนภาพก่อน")
-
+        if bypass_guard:
+            st.caption("⚠️ คุณเปิดใช้งาน Bypass — สามารถกดวิเคราะห์ต่อได้ (ผลลัพธ์อาจคลาดเคลื่อน)")
+        else:
+            st.caption("🚫 ภาพไม่ผ่านการตรวจสอบ — กรุณาเปลี่ยนภาพ หรือเปิด 'ตัวเลือกขั้นสูง' เพื่อติ๊กข้ามการตรวจ")
 with col_prev:
     st.markdown('<div class="card-title">ภาพที่เลือก</div>', unsafe_allow_html=True)
     if guard_preview is not None:
@@ -302,10 +304,11 @@ with col_prev:
 if run and image_input is not None:
     with st.spinner("🧠 AI กำลังวิเคราะห์สรีรวิทยาและคัดกรองโรค..."):
         try:
+            use_guard = strict and not bypass_guard
             st.session_state["result"] = predict_health_risk(
                 image=img_bytes, age=int(age), gender=gender,
                 waist_cm=waist_cm, lifestyle=lifestyle,
-                models=get_models(), face_guard=strict)
+                models=get_models(), face_guard=use_guard)
             st.session_state.pop("pdf", None)
         except FaceGuardError as e:
             st.session_state.pop("result", None)
