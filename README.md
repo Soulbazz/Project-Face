@@ -77,7 +77,7 @@
 
 ## ⚙️ การติดตั้งและวิธีใช้งาน (Installation & Usage)
 
-ระบบพัฒนาบน Python 3.10 รองรับการประมวลผลแบบเร่งความเร็วผ่าน GPU (NVIDIA CUDA 11.8 หรือเทียบเท่า)
+ระบบพัฒนาบน Python 3.10 รองรับการประมวลผลแบบเร่งความเร็วผ่าน GPU (NVIDIA CUDA 11.8 หรือเทียบเท่า) และ CPU อัตโนมัติ
 
 ### 1. การติดตั้งสภาพแวดล้อม (Environment Setup)
 
@@ -97,6 +97,11 @@ conda activate face2bmi
 
 (หรือติดตั้งผ่าน pip: `pip install -r requirements.txt`)
 
+สำหรับผู้ที่มี Environment อยู่แล้ว และต้องการอัปเดต Library ให้ตรงกัน:
+```bash
+conda env update -f environment.yml --prune
+```
+
 ### 2. การจัดเตรียมไฟล์น้ำหนักโมเดล (Model Weights)
 
 ตรวจสอบให้แน่ใจว่ามีไฟล์โมเดลครบถ้วนในโฟลเดอร์ `weights/`:
@@ -109,9 +114,15 @@ conda activate face2bmi
 
 ### 3. การรันแอปพลิเคชัน (Launch UI)
 
+วิธีที่ 1: ดับเบิลคลิกไฟล์ Launcher (แนะนำสำหรับ Windows)
+
+ดับเบิลคลิกที่ไฟล์ run_app.bat ที่อยู่โฟลเดอร์หลักของโปรเจกต์ ระบบจะเปิดใช้งาน Environment และรันเว็บแอปพลิเคชันให้อัตโนมัติ
+
+วิธีที่ 2: รันผ่าน Command Line
 เริ่มต้นรันหน้าต่างเว็บแอปพลิเคชันด้วย Streamlit:
 
 ```bash
+conda activate face2bmi
 cd scripts
 streamlit run app.py
 ```
