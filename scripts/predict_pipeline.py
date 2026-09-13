@@ -222,7 +222,7 @@ def predict_health_risk(
 
     # ---------- [SAFETY LAYER 1] Aleatoric Proxy Check & Morphometry ----------
     morph_data, aleatoric_err = extract_facial_morphometry(img_bgr)
-    if aleatoric_err:
+    if face_guard and aleatoric_err:
         raise ValueError(f"[Aleatoric Rejection] ภาพไม่ได้มาตรฐาน: {aleatoric_err}")
 
     # ---------- FACE GUARD ----------

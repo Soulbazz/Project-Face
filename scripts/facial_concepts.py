@@ -43,7 +43,7 @@ def extract_facial_morphometry(image_bgr):
         symmetry_diff = abs(dist_left - dist_right) / max(dist_left, dist_right)
 
         # เกณฑ์ปฏิเสธ Aleatoric (ภาพเอียงหรือหันข้างเกินเกณฑ์)
-        if abs(roll_angle) > 15.0 or symmetry_diff > 0.20:
+        if abs(roll_angle) > 15.0 or symmetry_diff > 0.50:
             return None, f"ภาพถ่ายเอียงหรือหันข้างเกินไป (Symmetry diff: {symmetry_diff:.1%}, Roll: {roll_angle:.1f}°)"
 
         # --- 2. คำนวณ Morphometric Metrics ---

@@ -252,7 +252,19 @@ with col_in:
         strict = st.toggle("🛡️ เปิดระบบตรวจสอบใบหน้า (Face Guard)", value=True,
                            help=f"Backend: {BACKEND_LABEL}")
         st.caption(f"เครื่องมือตรวจจับที่ใช้งานอยู่: **{BACKEND_LABEL}**")
-        bypass_guard = st.checkbox("⚠️ ยินยอมข้ามการคัดกรองคุณภาพภาพ (Bypass) เพื่อทดสอบผลลัพธ์", value=False)
+
+    # แสดงปุ่ม Checkbox ให้ติ๊ก Bypass ทันทีเมื่อมีการอัปโหลดภาพ
+    bypass_guard = False
+    if image_input is not None:
+        has_issue = (guard_rep is not None and (not guard_rep.ok or len(guard_rep.warnings) > 0))
+        if has_issue:
+            st.markdown('<div style="height:6px"></div>', unsafe_allow_html=True)
+            bypass_guard = st.checkbox(
+                "⚠️ **ยินยอมข้ามการตรวจสอบคุณภาพภาพถ่าย (Bypass Guard)** เพื่อทำการวิเคราะห์ต่อ",
+                value=False,
+                help="เปิดใช้งานเพื่อบังคับให้ระบบประมวลผลต่อ แม้ภาพจะมีความเบลอ เอียง หรือหันข้างเกินเกณฑ์"
+            )
+
     can_run = image_input is not None and (
         not strict or bypass_guard or guard_rep is None or guard_rep.ok)
 
