@@ -95,8 +95,8 @@ def train_and_calibrate(data, target_col, feature_cols, model_filename):
     print(f"Saved -> {save_path}")
 
 # 5. สั่งเทรนทั้ง 4 โมเดล
-features_with_waist = ['BMI', 'AGE', 'GENDER_NUM', 'WAIST_CM']
-features_no_waist = ['BMI', 'AGE', 'GENDER_NUM']
+features_with_waist = ['AGE', 'GENDER_NUM', 'BMI', 'WAIST_CM', 'TOTAL_BODY_FAT_PCT']
+features_no_waist = ['AGE', 'GENDER_NUM', 'BMI', 'TOTAL_BODY_FAT_PCT']
 
 # Diabetes
 train_and_calibrate(df_diab, 'TARGET_DIABETES', features_with_waist, 'xgb_classifier_diabetes.pkl')
