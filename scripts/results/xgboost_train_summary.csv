@@ -1,0 +1,3 @@
+model,features,mae,n_train,n_test,paq_matched,paq_unmatched
+with_waist,"BMI, AGE, GENDER_NUM, WAIST_CM, LIFESTYLE_LEVEL",2.807,4919,1230,6149,1
+no_waist,"BMI, AGE, GENDER_NUM, LIFESTYLE_LEVEL",3.018,4919,1230,6149,1

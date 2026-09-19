@@ -2,20 +2,47 @@
 app.py — AI Health Screening Dashboard
 รัน:  cd scripts && streamlit run app.py
 """
-import os
-import sys
 from datetime import datetime
 
-import torch
 import streamlit as st
 import plotly.graph_objects as go
 
 from predict_pipeline import (
-    load_all_models, predict_health_risk, check_weights,
-    get_device, LIFESTYLE_META, FaceGuardError,
+    load_all_models,
+    predict_health_risk,
+    check_weights,
+    FaceGuardError,
 )
+
 import face_guard as fg
 from pdf_export import safe_build_pdf, fonts_available
+
+# ══════════════════════════════════════════════════════════
+# เพิ่ม Metadata สำหรับแสดงผลใน UI เท่านั้น
+# ══════════════════════════════════════════════════════════
+LIFESTYLE_UI = {
+    "active": {
+        "level": 2,
+        "icon": "🏋️",
+        "title": "ออกกำลังกายหนัก",
+        "subtitle": "มีกิจกรรมหรือออกกำลังกายหนัก",
+        "display": "ออกกำลังกายหนัก (Active)",
+    },
+    "normal": {
+        "level": 1,
+        "icon": "🚶",
+        "title": "กิจกรรมปานกลาง",
+        "subtitle": "มีกิจกรรมระดับปานกลางในชีวิตประจำวัน",
+        "display": "กิจกรรมปานกลาง (Normal)",
+    },
+    "sedentary": {
+        "level": 0,
+        "icon": "💺",
+        "title": "กิจกรรมน้อย",
+        "subtitle": "ไม่มีกิจกรรมหนักหรือกิจกรรมปานกลาง",
+        "display": "กิจกรรมน้อย (Sedentary)",
+    },
+}
 
 st.set_page_config(page_title="AI Health Screening", page_icon="🩺",
                    layout="wide", initial_sidebar_state="collapsed")
@@ -233,11 +260,22 @@ with col_in:
 
     st.markdown('<div class="card-title">ขั้นตอนที่ 3 — รูปแบบการใช้ชีวิต</div>',
                 unsafe_allow_html=True)
+    
     ls_order = ["active", "normal", "sedentary"]
+
     lifestyle = st.radio(
-        "เลือกที่ใกล้เคียงตัวคุณที่สุด", ls_order, index=1,
-        format_func=lambda k: f"{LIFESTYLE_META[k]['icon']}  {LIFESTYLE_META[k]['title']}",
-        captions=[LIFESTYLE_META[k]["subtitle"] for k in ls_order])
+        "เลือกที่ใกล้เคียงตัวคุณที่สุด",
+        ls_order,
+        index=1,
+        format_func=lambda key: (
+            f"{LIFESTYLE_UI[key]['icon']}  "
+            f"{LIFESTYLE_UI[key]['title']}"
+        ),
+        captions=[
+            LIFESTYLE_UI[key]["subtitle"]
+            for key in ls_order
+        ],
+    )
 
     with st.expander("⚙️ ตัวเลือกขั้นสูง (ไม่บังคับ)"):
         st.caption("หากคุณมีสายวัด การใส่รอบเอวจะทำให้ระบบสลับไปใช้โมเดลชุดเต็ม "
@@ -360,6 +398,11 @@ if res:
 
     waist_txt = f"{res['waist_cm']:.1f} ซม." if res["has_waist"] else "ไม่ได้ระบุ"
     mode_icon = "🎯" if res["has_waist"] else "⚡"
+
+    result_lifestyle_key = res["lifestyle"]
+
+    result_lifestyle_ui = LIFESTYLE_UI[result_lifestyle_key]
+    
     st.markdown(f"""
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
       <span style="background:#f1f5f9;color:#475569;padding:6px 14px;border-radius:999px;
@@ -367,7 +410,7 @@ if res:
       <span style="background:#f1f5f9;color:#475569;padding:6px 14px;border-radius:999px;
         font-size:12.5px;">📏 รอบเอว: {waist_txt}</span>
       <span style="background:#f1f5f9;color:#475569;padding:6px 14px;border-radius:999px;
-        font-size:12.5px;">{res['lifestyle_meta']['icon']} {res['lifestyle_meta']['title']}</span>
+        font-size:12.5px;">{result_lifestyle_ui['icon']} {res['lifestyle_display']}</span>
       <span style="background:#e0f2fe;color:#0369a1;padding:6px 14px;border-radius:999px;
         font-size:12.5px;font-weight:600;">{mode_icon} {res['mode_text']}</span>
     </div>""", unsafe_allow_html=True)
@@ -486,22 +529,26 @@ if res:
         st.info(f"🧬 **การประเมินลักษณะทางกายวิภาค (Anatomical Insight)**\n\n{summary_text}")
     
 
-    st.markdown('<div style="height:20px"></div>', unsafe_allow_html=True)
-    d, ls = res["calibration_delta"], res["lifestyle_meta"]
-    if abs(d) < 0.01:
-        note = (f"<b>{ls['icon']} ไม่มีการปรับค่า</b> — {ls['reason']}<br>"
-                f"ค่าไขมันที่แสดง <b>{res['bodyfat']:.2f}%</b> คือผลจากโมเดลโดยตรง")
-    else:
-        sign, arrow = ("ลด", "↓") if d < 0 else ("เพิ่ม", "↑")
-        clamp = ("<br><span style='color:#b45309;'>⚠️ ค่าถูกจำกัดที่ 5% "
-                 "ซึ่งเป็นระดับไขมันจำเป็นขั้นต่ำของร่างกาย</span>"
-                 if res["was_clamped"] else "")
-        note = (f"<b>{ls['icon']} การปรับค่าตามไลฟ์สไตล์ (Lifestyle Calibration)</b><br>"
-                f"{ls['reason']}<br><br><span style='font-family:monospace;font-size:13.5px;'>"
-                f"ค่าดิบจากโมเดล <b>{res['raw_bodyfat']:.2f}%</b> {arrow} {sign} "
-                f"<b>{abs(d):.2f}%</b> → ค่าที่ใช้จริง <b>{res['bodyfat']:.2f}%</b>"
-                f"</span>{clamp}")
-    st.markdown(f'<div class="note">{note}</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div style="height:20px"></div>',
+        unsafe_allow_html=True,
+    )
+
+    ls_ui = LIFESTYLE_UI[res["lifestyle"]]
+
+    lifestyle_note = (
+        f"<b>{ls_ui['icon']} Lifestyle เป็น Feature ของโมเดล</b><br>"
+        f"ระบบใช้ <b>LIFESTYLE_LEVEL={res['lifestyle_level']}</b> "
+        f"({res['lifestyle_display']}) ร่วมกับ BMI อายุ เพศ"
+        f"{' และรอบเอว' if res['has_waist'] else ''} "
+        f"เพื่อให้โมเดล XGBoost ทำนายเปอร์เซ็นต์ไขมันโดยตรงจากข้อมูลที่เทรน "
+        f"โดยไม่มีการบวกหรือลบเปอร์เซ็นต์แบบกำหนดค่าคงที่"
+    )
+
+    st.markdown(
+        f'<div class="note">{lifestyle_note}</div>',
+        unsafe_allow_html=True,
+    )
 
     st.markdown('<div style="height:26px"></div>', unsafe_allow_html=True)
     st.markdown('<div class="card-title">🩺 Stage 2 — ความเสี่ยงโรค NCDs</div>',
@@ -524,21 +571,40 @@ if res:
 
     with st.expander("🔬 ดูรายละเอียดเชิงเทคนิค"):
         fr = res.get("face_report")
-        face_line = (f"| Face Guard | `{fr.backend}` · {fr.message} |\n"
-                     if fr else "| Face Guard | ปิดใช้งาน |\n")
+
+        face_line = (
+            f"| Face Guard | `{fr.backend}` · {fr.message} |\n"
+            if fr
+            else "| Face Guard | ปิดใช้งาน |\n"
+        )
+
+        bodyfat_model = (
+            "with_waist"
+            if res["has_waist"]
+            else "no_waist"
+        )
+
+        bodyfat_features = (
+            "`BMI, AGE, GENDER_NUM, WAIST_CM, LIFESTYLE_LEVEL`"
+            if res["has_waist"]
+            else "`BMI, AGE, GENDER_NUM, LIFESTYLE_LEVEL`"
+        )
+
         st.markdown(f"""
 | รายการ | ค่า |
 |---|---|
 | โหมดการประเมิน | {res['mode_text']} |
-| โมเดล Body Fat | `{'with_waist' if res['has_waist'] else 'no_waist'}` |
+| โมเดล Body Fat | `{bodyfat_model}` |
+| Features ของ Body Fat | {bodyfat_features} |
+| Lifestyle | `{res['lifestyle']}` |
+| LIFESTYLE_LEVEL | `{res['lifestyle_level']}` |
 {face_line}| BMI (ViT output) | `{res['bmi']:.4f}` |
 | Epistemic Uncertainty (±SD) | `±{res['bmi_std']:.4f}` |
-| Body Fat ดิบ | `{res['raw_bodyfat']:.4f}%` |
-| Calibration Delta | `{res['calibration_delta']:+.2f}%` |
-| Body Fat หลังปรับ | `{res['bodyfat']:.4f}%` |
-| P(Diabetes) | `{res['diabetes_pct']/100:.4f}` |
-| P(Hypertension) | `{res['hypertension_pct']/100:.4f}` |
-| Device | `{res.get('device','-')}` |""")
+| Body Fat (XGBoost output) | `{res['bodyfat']:.4f}%` |
+| P(Diabetes) | `{res['diabetes_pct'] / 100:.4f}` |
+| P(Hypertension) | `{res['hypertension_pct'] / 100:.4f}` |
+| Device | `{res.get('device', '-')}` |
+""")
 
     st.markdown("""<div style="height:20px"></div>
     <div class="disclaimer">⚠️ <b>ข้อจำกัดความรับผิดชอบ</b> — ผลลัพธ์นี้เป็นการ

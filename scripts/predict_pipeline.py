@@ -29,7 +29,6 @@ from models import get_model
 warnings.filterwarnings("ignore", category=UserWarning)
 
 import cv2
-import numpy as np
 
 # นำเข้า facial_concepts แบบ local import เพื่อไม่ให้พังเวลาอยู่ใน scripts/
 try:
@@ -56,36 +55,28 @@ WEIGHT_FILES = {
 # ══════════════════════════════════════════════════════════
 # CONFIG: Lifestyle Calibration
 # ══════════════════════════════════════════════════════════
-LIFESTYLE_META = {
-    "active": {
-        "icon": "🏋️",
-        "title": "ออกกำลังกายเป็นประจำ",
-        "subtitle": "มวลกล้ามเนื้อมาก / เล่นเวทสม่ำเสมอ",
-        "display": "ออกกำลังกายเป็นประจำ / มวลกล้ามเนื้อมาก (Active)",
-        "delta": -10.0,
-        "reason": ("ผู้ที่มีมวลกล้ามเนื้อสูงมักมีค่า BMI สูงกว่าปกติทั้งที่ไขมันจริงต่ำ "
-                   "ระบบจึงปรับลดเปอร์เซ็นต์ไขมันลงเพื่อชดเชยน้ำหนักส่วนที่เป็นกล้ามเนื้อ"),
-    },
-    "normal": {
-        "icon": "🚶",
-        "title": "กิจกรรมปานกลาง",
-        "subtitle": "ใช้ชีวิตทั่วไป ออกกำลังกายบ้าง",
-        "display": "ทั่วไป / กิจกรรมปานกลาง (Normal)",
-        "delta": 0.0,
-        "reason": "ใช้ค่าที่โมเดลทำนายโดยตรง ไม่มีการปรับชดเชย",
-    },
-    "sedentary": {
-        "icon": "💺",
-        "title": "แทบไม่ออกกำลังกาย",
-        "subtitle": "นั่งทำงานทั้งวัน / อาจมีไขมันแทรก (Skinny Fat)",
-        "display": "ไม่ออกกำลังกาย / อาจมีไขมันซ่อนรูป (Sedentary)",
-        "delta": +5.0,
-        "reason": ("กลุ่มนี้มักมีไขมันแทรกในช่องท้องสูงกว่าที่ BMI บ่งชี้ (ภาวะ Skinny Fat) "
-                   "ระบบจึงปรับเพิ่มเปอร์เซ็นต์ไขมันเพื่อไม่ให้ประเมินความเสี่ยงต่ำเกินจริง"),
-    },
+LIFESTYLE_LEVEL_MAP = {
+
+    "sedentary": 0,
+
+    "normal": 1,
+
+    "active": 2,
+
 }
 
-BODYFAT_FLOOR = 5.0    # Essential fat — เพดานล่างเชิงสรีรวิทยา
+
+LIFESTYLE_DISPLAY = {
+
+    0: "ไม่ออกกำลังกาย (Sedentary)",
+
+    1: "กิจกรรมปานกลาง (Normal)",
+
+    2: "ออกกำลังกายหนัก (Active)",
+
+}
+
+
 RISK_THRESHOLD = 50.0  # เกณฑ์ "เสี่ยงสูง" ตาม pipeline เดิม
 
 # ค่า z-score สำหรับช่วงความเชื่อมั่นที่ใช้บ่อย (สมมติ distribution ~ normal)
@@ -95,6 +86,53 @@ _Z_TABLE = {0.80: 1.282, 0.90: 1.645, 0.95: 1.960, 0.99: 2.576}
 # ══════════════════════════════════════════════════════════
 # UTILITIES
 # ══════════════════════════════════════════════════════════
+def normalize_lifestyle_level(
+    lifestyle: Union[str, int],
+) -> tuple[int, str]:
+    """
+    รองรับค่าจาก UI เดิม:
+      sedentary -> 0
+      normal    -> 1
+      active    -> 2
+
+    และรองรับค่าตัวเลข 0, 1, 2 โดยตรง
+    """
+    if isinstance(lifestyle, str):
+        value = lifestyle.strip().lower()
+
+        if value in LIFESTYLE_LEVEL_MAP:
+            level = LIFESTYLE_LEVEL_MAP[value]
+            return level, value
+
+        try:
+            lifestyle = int(value)
+        except ValueError as exc:
+            raise ValueError(
+                "lifestyle ต้องเป็น sedentary, normal, active "
+                "หรือค่า LIFESTYLE_LEVEL 0, 1, 2"
+            ) from exc
+
+    try:
+        level = int(lifestyle)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "LIFESTYLE_LEVEL ต้องเป็นจำนวนเต็ม 0, 1 หรือ 2"
+        ) from exc
+
+    if level not in (0, 1, 2):
+        raise ValueError(
+            "LIFESTYLE_LEVEL ต้องเป็น 0 (Sedentary), "
+            "1 (Normal) หรือ 2 (Active)"
+        )
+
+    lifestyle_key = {
+        0: "sedentary",
+        1: "normal",
+        2: "active",
+    }[level]
+
+    return level, lifestyle_key
+
 def get_device() -> str:
     if torch.cuda.is_available():
         return "cuda"
@@ -104,6 +142,49 @@ def get_device() -> str:
 
 def check_weights() -> list[str]:
     return [f for f in WEIGHT_FILES.values() if not (WEIGHTS_DIR / f).exists()]
+
+# ══════════════════════════════════════════════════════════
+# ตรวจสอบ Feature ก่อนทำนาย เพื่อป้องกันโหลด Weight รุ่นเก่าโดยไม่รู้ตัว
+# ══════════════════════════════════════════════════════════
+
+def validate_bodyfat_models(models: dict) -> None:
+    expected = {
+        "bf_waist": [
+            "BMI",
+            "AGE",
+            "GENDER_NUM",
+            "WAIST_CM",
+            "LIFESTYLE_LEVEL",
+        ],
+        "bf_nowaist": [
+            "BMI",
+            "AGE",
+            "GENDER_NUM",
+            "LIFESTYLE_LEVEL",
+        ],
+    }
+
+    for model_key, expected_features in expected.items():
+        model = models[model_key]
+
+        actual_features = getattr(
+            model,
+            "feature_names_in_",
+            None,
+        )
+
+        if actual_features is None:
+            continue
+
+        actual_features = list(actual_features)
+
+        if actual_features != expected_features:
+            raise ValueError(
+                f"โมเดล {model_key} ใช้ Features ไม่ตรงกับ Pipeline\n"
+                f"โมเดล: {actual_features}\n"
+                f"Pipeline: {expected_features}\n"
+                "กรุณารัน scripts/train_xgboost.py ใหม่"
+            )
 
 
 # ══════════════════════════════════════════════════════════
@@ -130,6 +211,8 @@ def load_all_models(device: Optional[str] = None, verbose: bool = False) -> dict
     for key in ("bf_waist", "bf_nowaist", "diab_waist",
                 "diab_nowaist", "hyp_waist", "hyp_nowaist"):
         models[key] = joblib.load(WEIGHTS_DIR / WEIGHT_FILES[key])
+
+    validate_bodyfat_models(models)
 
     if verbose:
         print("โหลดโมเดลครบทั้งหมดแล้ว ✅")
@@ -265,12 +348,6 @@ def get_risk_level(pct: float) -> dict:
             "color": "#dc2626", "bg": "#fee2e2", "icon": "🔴",
             "rgb": (220, 38, 38)}
 
-def enable_mc_dropout(model):
-    """เปิด Dropout layer ค้างไว้ขณะทำนายเพื่อประเมิน Epistemic Uncertainty"""
-    for m in model.modules():
-        if m.__class__.__name__.startswith('Dropout'):
-            m.train()
-
 # ══════════════════════════════════════════════════════════
 # MAIN PREDICTION — คืน dict; รองรับ MC Dropout uncertainty (opt-in)
 # ══════════════════════════════════════════════════════════
@@ -279,7 +356,7 @@ def predict_health_risk(
     age: int,
     gender: str,
     waist_cm: Optional[float] = None,
-    lifestyle: str = "normal",
+    lifestyle: Union[str, int] = 1,
     models: Optional[dict] = None,
     face_guard: bool = True,
     mc_dropout: bool = False,
@@ -291,10 +368,10 @@ def predict_health_risk(
     if not (10 <= age <= 100):
         raise ValueError("อายุต้องอยู่ระหว่าง 10–100 ปี")
 
-    lifestyle = str(lifestyle).lower()
-    if lifestyle not in LIFESTYLE_META:
-        lifestyle = "normal"
-    ls_meta = LIFESTYLE_META[lifestyle]
+    lifestyle_level, lifestyle_key = normalize_lifestyle_level(
+        lifestyle
+    )
+    lifestyle_display = LIFESTYLE_DISPLAY[lifestyle_level]
 
     has_waist = waist_cm is not None and float(waist_cm) > 0
     if has_waist:
@@ -356,20 +433,47 @@ def predict_health_risk(
             "โมเดลไม่คุ้นเคยกับลักษณะโครงหน้านี้ แนะนำให้ปรึกษาแพทย์เพื่อตรวจวัดโดยตรง"
         )
 
-    # ---------- STAGE 1.5: Body Fat (Dual Route) ----------
+# ---------- STAGE 1.5: Body Fat (Dual Route) ----------
     if has_waist:
-        df_bf = pd.DataFrame([[pred_bmi, age, gender_num, waist_cm]],
-                             columns=["BMI", "AGE", "GENDER_NUM", "WAIST_CM"])
-        raw_bodyfat = float(models["bf_waist"].predict(df_bf)[0])
-    else:
-        df_bf = pd.DataFrame([[pred_bmi, age, gender_num]],
-                             columns=["BMI", "AGE", "GENDER_NUM"])
-        raw_bodyfat = float(models["bf_nowaist"].predict(df_bf)[0])
+        df_bf = pd.DataFrame(
+            [[
+                pred_bmi,
+                age,
+                gender_num,
+                waist_cm,
+                lifestyle_level,
+            ]],
+            columns=[
+                "BMI",
+                "AGE",
+                "GENDER_NUM",
+                "WAIST_CM",
+                "LIFESTYLE_LEVEL",
+            ],
+        )
 
-    # ---------- Lifestyle Calibration ----------
-    pred_bodyfat = max(BODYFAT_FLOOR, raw_bodyfat + ls_meta["delta"])
-    actual_delta = pred_bodyfat - raw_bodyfat
-    was_clamped = ls_meta["delta"] < 0 and abs(pred_bodyfat - BODYFAT_FLOOR) < 1e-6
+        pred_bodyfat = float(
+            models["bf_waist"].predict(df_bf)[0]
+        )
+    else:
+        df_bf = pd.DataFrame(
+            [[
+                pred_bmi,
+                age,
+                gender_num,
+                lifestyle_level,
+            ]],
+            columns=[
+                "BMI",
+                "AGE",
+                "GENDER_NUM",
+                "LIFESTYLE_LEVEL",
+            ],
+        )
+
+        pred_bodyfat = float(
+            models["bf_nowaist"].predict(df_bf)[0]
+        )
 
     # ---------- STAGE 2: NCDs ----------
     if has_waist:
@@ -393,12 +497,13 @@ def predict_health_risk(
         "has_waist": has_waist,
         "mode_text": ("ประเมินแบบเต็มรูปแบบ (ใช้รอบเอว)" if has_waist
                       else "ประเมินแบบพื้นฐาน (ไม่ใช้รอบเอว)"),
-        "lifestyle": lifestyle, "lifestyle_meta": ls_meta,
+        "lifestyle": lifestyle_key,
+        "lifestyle_level": lifestyle_level,
+        "lifestyle_display": lifestyle_display,
         "bmi": pred_bmi, "bmi_cat": shape["bmi_cat"], "bmi_key": shape["bmi_key"],
         "bmi_std": std_bmi, "ci_range": [ci_lower, ci_upper],
         "morphometry": morph_data,
-        "raw_bodyfat": raw_bodyfat, "bodyfat": pred_bodyfat,
-        "calibration_delta": actual_delta, "was_clamped": was_clamped,
+        "bodyfat": pred_bodyfat,
         "bf_cat": shape["bf_cat"], "bf_key": shape["bf_key"],
         "bf_cuts": shape["bf_cuts"],
         "diabetes_pct": diab, "diabetes_level": get_risk_level(diab),
@@ -414,20 +519,59 @@ def predict_health_risk(
         bmi_samples = mc_dropout_bmi(img_tensor, vit_model, n_samples=mc_samples)
 
         n = len(bmi_samples)
-        ages_arr = np.full(n, age, dtype=np.float64)
-        genders_arr = np.full(n, gender_num, dtype=np.float64)
+
+        ages_arr = np.full(
+            n,
+            age,
+            dtype=np.float64,
+        )
+
+        genders_arr = np.full(
+            n,
+            gender_num,
+            dtype=np.float64,
+        )
+
+        lifestyle_arr = np.full(
+            n,
+            lifestyle_level,
+            dtype=np.int8,
+        )
 
         if has_waist:
-            waists_arr = np.full(n, waist_cm, dtype=np.float64)
-            df_bf_mc = pd.DataFrame({"BMI": bmi_samples, "AGE": ages_arr,
-                                      "GENDER_NUM": genders_arr, "WAIST_CM": waists_arr})
-            raw_bf_samples = models["bf_waist"].predict(df_bf_mc)
-        else:
-            df_bf_mc = pd.DataFrame({"BMI": bmi_samples, "AGE": ages_arr,
-                                      "GENDER_NUM": genders_arr})
-            raw_bf_samples = models["bf_nowaist"].predict(df_bf_mc)
+            waists_arr = np.full(
+                n,
+                waist_cm,
+                dtype=np.float64,
+            )
 
-        bf_samples = np.maximum(BODYFAT_FLOOR, raw_bf_samples + ls_meta["delta"])
+            df_bf_mc = pd.DataFrame({
+                "BMI": bmi_samples,
+                "AGE": ages_arr,
+                "GENDER_NUM": genders_arr,
+                "WAIST_CM": waists_arr,
+                "LIFESTYLE_LEVEL": lifestyle_arr,
+            })
+
+            bf_samples = models["bf_waist"].predict(
+                df_bf_mc
+            )
+        else:
+            df_bf_mc = pd.DataFrame({
+                "BMI": bmi_samples,
+                "AGE": ages_arr,
+                "GENDER_NUM": genders_arr,
+                "LIFESTYLE_LEVEL": lifestyle_arr,
+            })
+
+            bf_samples = models["bf_nowaist"].predict(
+                df_bf_mc
+            )
+
+        bf_samples = np.asarray(
+            bf_samples,
+            dtype=np.float64,
+        )
 
         if has_waist:
             df_ncd_mc = pd.DataFrame({
@@ -471,16 +615,21 @@ def print_report(r: dict) -> None:
     print("=" * 60)
     waist_display = f"{r['waist_cm']} ซม." if r["has_waist"] else "ไม่ได้ระบุ"
     print(f"ผู้รับการประเมิน: {str(r['gender']).capitalize()}, อายุ {r['age']} ปี, รอบเอว: {waist_display}")
-    print(f"รูปแบบการใช้ชีวิต: {r['lifestyle_meta']['display']}")
+    print(
+        f"รูปแบบการใช้ชีวิต: {r['lifestyle_display']} "
+        f"(LIFESTYLE_LEVEL={r['lifestyle_level']})"
+    )
     print(f"โหมดการประเมิน: {r['mode_text']}")
     print("-" * 60)
     print("📷 [Stage 1] ประเมินจากใบหน้า (ViT Model + Morphometry)")
     print(f"   > ค่า BMI ที่ทำนายได้   : {r['bmi']:.2f} (±{r['bmi_std']:.2f}) [{r['bmi_cat']}]")
     m = r['morphometry']
     print(f"   > Morphometry: LFWR={m['LFWR']:.2f}, CJWR={m['CJWR']:.2f}, PAR={m['PAR']:.2f}")
-    print("📊 [Stage 1.5] ประเมินไขมัน (XGBoost)")
-    print(f"   > ค่าดิบก่อนปรับ        : {r['raw_bodyfat']:.2f} %")
-    print(f"   > เปอร์เซ็นต์ไขมันรวม    : {r['bodyfat']:.2f} % [{r['bf_cat']}]")
+    print("📊 [Stage 1.5] ประเมินไขมัน (XGBoost + Lifestyle Feature)")
+    print(
+        f"   > เปอร์เซ็นต์ไขมันรวม    : "
+        f"{r['bodyfat']:.2f} % [{r['bf_cat']}]"
+    )
     print("-" * 60)
     print("🩺 [Stage 2] คัดกรองความเสี่ยงโรค NCDs")
     d, h = r["diabetes_level"], r["hypertension_level"]

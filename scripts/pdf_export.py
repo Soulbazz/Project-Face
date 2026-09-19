@@ -32,6 +32,23 @@ WHITE = (255, 255, 255)
 PAGE_W, MARGIN = 210, 16
 CONTENT_W = PAGE_W - MARGIN * 2
 
+LIFESTYLE_PDF = {
+    "sedentary": {
+        "level": 0,
+        "th": "กิจกรรมน้อย (Sedentary)",
+        "en": "Sedentary",
+    },
+    "normal": {
+        "level": 1,
+        "th": "กิจกรรมปานกลาง (Normal)",
+        "en": "Moderate activity",
+    },
+    "active": {
+        "level": 2,
+        "th": "ออกกำลังกายหนัก (Active)",
+        "en": "Vigorous activity",
+    },
+}
 
 def fonts_available() -> bool:
     return FONT_REG.exists()
@@ -153,14 +170,25 @@ def build_pdf(res: dict, include_photo: bool = True,
     gender_th = "ชาย" if g == "male" else "หญิง"
     waist_txt = (f"{res['waist_cm']:.1f} " + T("ซม.", "cm")) if res["has_waist"] \
         else T("ไม่ได้ระบุ", "Not provided")
-    ls = res["lifestyle_meta"]
+    lifestyle_key = str(res.get("lifestyle", "normal")).lower()
+    lifestyle_level = int(res.get("lifestyle_level", 1))
+
+    ls = LIFESTYLE_PDF.get(
+        lifestyle_key,
+        LIFESTYLE_PDF["normal"],
+    )
+
+    lifestyle_text = T(
+        ls["th"],
+        ls["en"],
+    )
 
     rows = [
         (T("เพศ / อายุ", "Gender / Age"),
          f"{T(gender_th, g.capitalize())}  ·  {res['age']} " + T("ปี", "yrs")),
         (T("รอบเอว", "Waist"), waist_txt),
-        (T("ไลฟ์สไตล์", "Lifestyle"),
-         T(ls["title"], res["lifestyle"].capitalize())),
+        (T("กิจกรรมทางกาย", "Physical activity"),
+         f"{lifestyle_text} (Level {lifestyle_level})",),
         (T("โหมดประเมิน", "Mode"),
          T(res["mode_text"], "Full (with waist)" if res["has_waist"] else "Basic (no waist)")),
     ]
@@ -216,8 +244,11 @@ def build_pdf(res: dict, include_photo: bool = True,
     y += card_h + 7
 
     # ══════ SECTION 2 : Body Fat ══════
-    y = section_header(y, "02", T("เปอร์เซ็นต์ไขมันในร่างกาย — XGBoost Regressor",
-                                  "Total Body Fat % - XGBoost Regressor"))
+    y = section_header(y, "02", T(
+        "เปอร์เซ็นต์ไขมันในร่างกาย — XGBoost + กิจกรรมทางกาย",
+        "Total Body Fat % - XGBoost + Physical Activity",
+    ),)
+
     pdf.set_fill_color(*LIGHT)
     pdf.rect(MARGIN, y, CONTENT_W, card_h, "F")
 
@@ -243,33 +274,45 @@ def build_pdf(res: dict, include_photo: bool = True,
 
     y += card_h + 6
 
-    # ══════ Calibration Note ══════
-    d = res["calibration_delta"]
-    if abs(d) < 0.01:
-        note = T(f"ไม่มีการปรับค่าตามไลฟ์สไตล์ — {ls['reason']}",
-                 "No lifestyle calibration applied.")
-    else:
-        sign = T("ลด", "decreased") if d < 0 else T("เพิ่ม", "increased")
-        arrow = "-" if d < 0 else "+"
-        note = T(
-            f"การปรับค่าตามไลฟ์สไตล์ ({ls['title']}): ค่าดิบจากโมเดล "
-            f"{res['raw_bodyfat']:.2f}% {sign}ลง {abs(d):.2f}% → ค่าที่ใช้จริง "
-            f"{res['bodyfat']:.2f}%   |   {ls['reason']}",
-            f"Lifestyle calibration: raw {res['raw_bodyfat']:.2f}% "
-            f"{arrow}{abs(d):.2f}% -> adjusted {res['bodyfat']:.2f}%",
-        )
-    if res.get("was_clamped"):
-        note += T("  (หมายเหตุ: ค่าถูกจำกัดที่ 5% ซึ่งเป็นระดับไขมันจำเป็นขั้นต่ำ)",
-                  "  (Note: clamped at 5% essential fat floor)")
+    # ══════ Lifestyle Feature Note ══════
+    feature_list = (
+        "BMI, AGE, GENDER_NUM, WAIST_CM, LIFESTYLE_LEVEL"
+        if res["has_waist"]
+        else "BMI, AGE, GENDER_NUM, LIFESTYLE_LEVEL"
+    )
+
+    note = T(
+        (
+            f"กิจกรรมทางกายถูกใช้เป็นฟีเจอร์ของโมเดลโดยตรง: "
+            f"LIFESTYLE_LEVEL={lifestyle_level} ({ls['th']}) "
+            f"ร่วมกับข้อมูล BMI อายุ เพศ"
+            f"{' และรอบเอว' if res['has_waist'] else ''} "
+            f"เพื่อทำนายเปอร์เซ็นต์ไขมันจาก XGBoost "
+            f"โดยไม่มีการบวกหรือลบค่าคงที่ภายหลังการทำนาย"
+        ),
+        (
+            f"Physical activity is used directly as a trained model feature: "
+            f"LIFESTYLE_LEVEL={lifestyle_level} ({ls['en']}). "
+            f"Body fat is predicted directly by XGBoost without "
+            f"post-prediction fixed-value calibration."
+        ),
+    )
 
     pdf.set_fill_color(240, 249, 255)
-    nh = 13
+    nh = 16
     pdf.rect(MARGIN, y, CONTENT_W, nh, "F")
+
     pdf.set_fill_color(14, 165, 233)
     pdf.rect(MARGIN, y, 1.6, nh, "F")
+
     pdf.set_xy(MARGIN + 5, y + 1.8)
     pdf.f(7.6, color=(12, 74, 110))
-    pdf.multi_cell(CONTENT_W - 9, 3.6, note)
+    pdf.multi_cell(
+        CONTENT_W - 9,
+        3.6,
+        note,
+    )
+
     y += nh + 5
 
     # ══════ SECTION 3 : NCDs ══════
@@ -336,13 +379,21 @@ def build_pdf(res: dict, include_photo: bool = True,
     pdf.f(8, True, SLATE)
     pdf.cell(0, 4.5, T("ภาคผนวก — ค่าทางเทคนิค", "Appendix - Technical values"))
     tech = [
-        ("BMI (ViT raw)", f"{res['bmi']:.4f}"),
-        ("Body Fat raw", f"{res['raw_bodyfat']:.4f}%"),
-        ("Calibration Δ", f"{res['calibration_delta']:+.2f}%"),
-        ("Body Fat final", f"{res['bodyfat']:.4f}%"),
-        ("P(Diabetes)", f"{res['diabetes_pct']/100:.4f}"),
-        ("P(Hypertension)", f"{res['hypertension_pct']/100:.4f}"),
-        ("Model route", "with_waist" if res["has_waist"] else "no_waist"),
+        ("BMI (ViT output)",
+         f"{res['bmi']:.4f}",),
+        ("BMI uncertainty",
+         f"SD {res.get('bmi_std', 0.0):.4f}",),
+        ("Lifestyle",
+         lifestyle_key,),
+        ("Lifestyle level",
+         str(lifestyle_level),),
+        ("Body Fat (XGBoost)",
+         f"{res['bodyfat']:.4f}%",),
+        ("P(Diabetes)",
+         f"{res['diabetes_pct'] / 100:.4f}",),
+        ("P(Hypertension)",
+         f"{res['hypertension_pct'] / 100:.4f}",),
+        ("Model route", ("with_waist" if res["has_waist"] else "no_waist"),),
     ]
     cx, cy = MARGIN, y + 5.0
     for i, (k, v) in enumerate(tech):
