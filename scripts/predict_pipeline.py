@@ -98,8 +98,6 @@ LIFESTYLE_DISPLAY = {
 }
 
 
-RISK_THRESHOLD = 50.0  # เกณฑ์ "เสี่ยงสูง" ตาม pipeline เดิม
-
 # ค่า z-score สำหรับช่วงความเชื่อมั่นที่ใช้บ่อย (สมมติ distribution ~ normal)
 _Z_TABLE = {0.80: 1.282, 0.90: 1.645, 0.95: 1.960, 0.99: 2.576}
 
