@@ -11,9 +11,19 @@ predict_pipeline.py  (v3 - Web-Ready + MC Dropout)
 from __future__ import annotations
 
 import io
+import sys
+import json
+import copy
 import warnings
 from pathlib import Path
 from typing import Optional, Union, Any
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 import joblib
 import numpy as np
@@ -22,11 +32,28 @@ import torch
 import torch.nn as nn
 from PIL import Image, ImageOps
 
+# ══════════════════════════════════════════════════════════
+# PATH CONFIG & SYS.PATH SETUP
+# ══════════════════════════════════════════════════════════
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent.resolve()
+WEIGHTS_DIR = (PROJECT_ROOT / "weights").resolve()
+
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from torchvision.transforms import ToTensor
 from loader import vit_transforms
 from models import get_model
 
 warnings.filterwarnings("ignore", category=UserWarning)
+try:
+    from sklearn.exceptions import InconsistentVersionWarning
+    warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
+except ImportError:
+    pass
 
 import cv2
 
@@ -35,12 +62,6 @@ try:
     from facial_concepts import extract_facial_morphometry
 except ImportError:
     from scripts.facial_concepts import extract_facial_morphometry
-
-# ══════════════════════════════════════════════════════════
-# PATH CONFIG
-# ══════════════════════════════════════════════════════════
-BASE_DIR = Path(__file__).resolve().parent
-WEIGHTS_DIR = (BASE_DIR.parent / "weights").resolve()
 
 WEIGHT_FILES = {
     "vit":          "vit_bmi_model.pt",
@@ -331,22 +352,214 @@ def analyze_body_shape(bmi: float, body_fat: float, gender) -> dict:
     return {"bmi_cat": bmi_cat, "bmi_key": bmi_key,
             "bf_cat": bf_cat, "bf_key": bf_key, "bf_cuts": cuts}
 
-def get_risk_level(pct: float) -> dict:
-    if pct < 40:
-        return {"label": "ความเสี่ยงต่ำ", "key": "low",
-                "color": "#16a34a", "bg": "#dcfce7", "icon": "🟢",
-                "rgb": (22, 163, 74)}
-    if pct < RISK_THRESHOLD:
-        return {"label": "เฝ้าระวัง", "key": "watch",
-                "color": "#ca8a04", "bg": "#fef9c3", "icon": "🟡",
-                "rgb": (202, 138, 4)}
-    if pct < 75:
-        return {"label": "ความเสี่ยงสูง", "key": "high",
-                "color": "#ea580c", "bg": "#ffedd5", "icon": "🟠",
-                "rgb": (234, 88, 12)}
-    return {"label": "ความเสี่ยงสูงมาก", "key": "critical",
-            "color": "#dc2626", "bg": "#fee2e2", "icon": "🔴",
-            "rgb": (220, 38, 38)}
+# ══════════════════════════════════════════════════════════
+# DYNAMIC THRESHOLD & CLINICAL TRIAGE STRATA CONFIGURATION
+# ══════════════════════════════════════════════════════════
+DEFAULT_CLINICAL_TIERS = {
+    "diabetes": {
+        "low_max": 4.5,          # < 4.5% : Green (Low Risk)
+        "watch_max": 6.1,        # 4.5% - 6.1% : Yellow (Watchful)
+        "f2_cutoff": 6.1,        # >= 6.1% : Orange (Screen Positive / High Risk)
+        "urgent_min": 12.0,      # >= 12.0% : Red (Urgent Risk)
+        "youden_cutoff": 7.41,
+    },
+    "hypertension": {
+        "low_max": 20.0,         # < 20.0% : Green (Low Risk)
+        "watch_max": 33.0,       # 20.0% - 33.0% : Yellow (Watchful)
+        "f2_cutoff": 15.8,       # >= 15.8% (initial F2) / >= 33.0% (Screen Positive)
+        "urgent_min": 55.0,      # >= 55.0% : Red (Urgent Risk)
+        "youden_cutoff": 33.1,
+    }
+}
+
+def load_thresholds_config(weights_dir: Optional[Path] = None) -> dict:
+    """
+    โหลดค่า Cutoff และ Tiers จาก weights/thresholds.json อย่างปลอดภัย
+    หากไฟล์ขาดหายหรือไม่สมบูรณ์ จะ fallback กลับสู่เกณฑ์ทางคลินิกที่ผ่านการทดสอบ (Validated Clinical Tiers)
+    """
+    weights_path = Path(weights_dir) if weights_dir else WEIGHTS_DIR
+    thresholds_file = weights_path / "thresholds.json"
+    tiers = copy.deepcopy(DEFAULT_CLINICAL_TIERS)
+    tiers["raw_thresholds"] = {}
+
+    if not thresholds_file.exists():
+        return tiers
+
+    try:
+        with open(thresholds_file, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        tiers["raw_thresholds"] = raw
+
+        # ปรับปรุง threshold แบบไดนามิกถ้ามีข้อมูลใน thresholds.json
+        if "xgb_classifier_diabetes.pkl" in raw:
+            d_cfg = raw["xgb_classifier_diabetes.pkl"]
+            if "f2_threshold" in d_cfg and d_cfg["f2_threshold"] is not None:
+                tiers["diabetes"]["f2_cutoff"] = round(float(d_cfg["f2_threshold"]) * 100, 2)
+            if "youden_threshold" in d_cfg and d_cfg["youden_threshold"] is not None:
+                tiers["diabetes"]["youden_cutoff"] = round(float(d_cfg["youden_threshold"]) * 100, 2)
+
+        if "xgb_classifier_hypertension.pkl" in raw:
+            h_cfg = raw["xgb_classifier_hypertension.pkl"]
+            if "f2_threshold" in h_cfg and h_cfg["f2_threshold"] is not None:
+                tiers["hypertension"]["f2_cutoff"] = round(float(h_cfg["f2_threshold"]) * 100, 2)
+            if "youden_threshold" in h_cfg and h_cfg["youden_threshold"] is not None:
+                tiers["hypertension"]["youden_cutoff"] = round(float(h_cfg["youden_threshold"]) * 100, 2)
+
+    except Exception as e:
+        warnings.warn(f"ไม่สามารถอ่าน weights/thresholds.json ({e}) - ใช้ค่าเกณฑ์ทางคลินิกเริ่มต้น")
+
+    return tiers
+
+# โหลด Config สำหรับ Module
+GLOBAL_THRESHOLDS_CONFIG = load_thresholds_config()
+
+def get_risk_level(
+    pct: float,
+    disease: str = "diabetes",
+    config: Optional[dict] = None
+) -> dict:
+    """
+    จัดกลุ่มระดับความเสี่ยงทางคลินิก (Clinical Triage Strata) 4 ระดับ
+    รองรับทั้งค่าเปอร์เซ็นต์ (0.0 - 100.0) และค่าทศนิยมความน่าจะเป็น (0.0 - 1.0)
+    
+    คืนค่า Dictionary:
+    {
+        "label": str,       # เช่น "Screen Positive / ความเสี่ยงสูง"
+        "level": str,       # Triage Tier สากล ("Low Risk", "Watchful", "Screen Positive / High Risk", "Urgent Risk")
+        "key": str,         # Styling key ("low", "watch", "high", "critical")
+        "color": str,       # สี HEX
+        "bg": str,          # สีพื้นหลัง HEX
+        "icon": str,        # Emoji ("🟢", "🟡", "🟠", "🔴")
+        "rgb": tuple,       # (r, g, b)
+        "action": str,      # ข้อเสนอแนะทางคลินิกและการปฏิบัติตน
+        "cutoff_used": float # เกณฑ์ Cutoff ที่ใช้ในการแบ่งกลุ่ม (% points)
+    }
+    """
+    p = float(pct)
+    # จัดการกรณีผู้ใช้ส่งค่าเป็นความน่าจะเป็นทศนิยม (0.0 < p <= 1.0)
+    if 0.0 < p <= 1.0:
+        p = p * 100.0
+
+    cfg = config or GLOBAL_THRESHOLDS_CONFIG
+    disease_str = str(disease).strip().lower()
+    is_hyp = any(k in disease_str for k in ("hyp", "htn", "ความดัน"))
+
+    if not is_hyp:
+        # ─── DIABETES (T2DM) ───
+        # เกณฑ์มาตรฐาน: Low < 4.5%, Watchful 4.5-6.1%, Screen Positive >= 6.1%, Urgent >= 12.0%
+        d_cfg = cfg.get("diabetes", DEFAULT_CLINICAL_TIERS["diabetes"])
+        low_max = float(d_cfg.get("low_max", 4.5))
+        watch_max = float(d_cfg.get("watch_max", 6.1))
+        f2_cutoff = float(d_cfg.get("f2_cutoff", 6.1))
+        urgent_min = float(d_cfg.get("urgent_min", 12.0))
+        cutoff_used = f2_cutoff
+
+        if p < low_max:
+            return {
+                "label": "ความเสี่ยงต่ำ",
+                "level": "Low Risk",
+                "key": "low",
+                "color": "#16a34a",
+                "bg": "#dcfce7",
+                "icon": "🟢",
+                "rgb": (22, 163, 74),
+                "action": "ความเสี่ยงอยู่ในเกณฑ์มาตรฐานประชากรทั่วไป แนะนำตรวจสุขภาพประจำปีและรักษาพฤติกรรมสุขภาพที่ดี",
+                "cutoff_used": cutoff_used,
+            }
+        elif p < watch_max:
+            return {
+                "label": "เฝ้าระวัง",
+                "level": "Watchful",
+                "key": "watch",
+                "color": "#ca8a04",
+                "bg": "#fef9c3",
+                "icon": "🟡",
+                "rgb": (202, 138, 4),
+                "action": "พบสัญญาณความเสี่ยงในระดับเฝ้าระวัง แนะนำปรับพฤติกรรมโภชนาการ ลดอาหารหวาน-แป้งแปรรูป และคัดกรองซ้ำใน 6-12 เดือน",
+                "cutoff_used": cutoff_used,
+            }
+        elif p < urgent_min:
+            return {
+                "label": "Screen Positive / ความเสี่ยงสูง",
+                "level": "Screen Positive / High Risk",
+                "key": "high",
+                "color": "#ea580c",
+                "bg": "#ffedd5",
+                "icon": "🟠",
+                "rgb": (234, 88, 12),
+                "action": f"ผลคัดกรองเบื้องต้นเป็นบวก (ความน่าจะเป็น {p:.1f}% เกินเกณฑ์ F2 screening cutoff {cutoff_used:.1f}%) แนะนำเข้ารับการตรวจยืนยันด้วยผลเลือดทางคลินิก (FPG หรือ HbA1c)",
+                "cutoff_used": cutoff_used,
+            }
+        else:
+            return {
+                "label": "ความเสี่ยงสูงมาก (Urgent Risk)",
+                "level": "Urgent Risk",
+                "key": "critical",
+                "color": "#dc2626",
+                "bg": "#fee2e2",
+                "icon": "🔴",
+                "rgb": (220, 38, 38),
+                "action": "ระดับความน่าจะเป็นสูงมากอย่างมีนัยสำคัญทางคลินิก แนะนำพบแพทย์เพื่อรับการประเมินและตรวจทางห้องปฏิบัติการทันที",
+                "cutoff_used": cutoff_used,
+            }
+    else:
+        # ─── ESSENTIAL HYPERTENSION ───
+        # เกณฑ์มาตรฐาน: Low < 20.0%, Watchful 20.0-33.0%, Screen Positive >= 33.0% (Youden) หรือ F2 >= 15.8%, Urgent >= 55.0%
+        h_cfg = cfg.get("hypertension", DEFAULT_CLINICAL_TIERS["hypertension"])
+        low_max = float(h_cfg.get("low_max", 20.0))
+        watch_max = float(h_cfg.get("watch_max", 33.0))
+        f2_cutoff = float(h_cfg.get("f2_cutoff", 15.8))
+        urgent_min = float(h_cfg.get("urgent_min", 55.0))
+        cutoff_used = watch_max  # 33.0% Youden cutoff for Screen Positive tier
+
+        if p < low_max:
+            return {
+                "label": "ความเสี่ยงต่ำ",
+                "level": "Low Risk",
+                "key": "low",
+                "color": "#16a34a",
+                "bg": "#dcfce7",
+                "icon": "🟢",
+                "rgb": (22, 163, 74),
+                "action": "ระดับความดันโลหิตคาดว่าอยู่ในเกณฑ์ปกติ แนะนำตรวจวัดความดันประจำปีและควบคุมอาหารลดโซเดียม",
+                "cutoff_used": cutoff_used,
+            }
+        elif p < watch_max:
+            return {
+                "label": "เฝ้าระวัง",
+                "level": "Watchful",
+                "key": "watch",
+                "color": "#ca8a04",
+                "bg": "#fef9c3",
+                "icon": "🟡",
+                "rgb": (202, 138, 4),
+                "action": "พบแนวโน้มความเสี่ยงระยะก่อนความดันสูง (Pre-hypertension) แนะนำลดอาหารเค็ม ควบคุมน้ำหนักตัว และหมั่นวัดความดันโลหิตเป็นระยะ",
+                "cutoff_used": cutoff_used,
+            }
+        elif p < urgent_min:
+            return {
+                "label": "Screen Positive / ความเสี่ยงสูง",
+                "level": "Screen Positive / High Risk",
+                "key": "high",
+                "color": "#ea580c",
+                "bg": "#ffedd5",
+                "icon": "🟠",
+                "rgb": (234, 88, 12),
+                "action": f"ผลคัดกรองเบื้องต้นเป็นบวก (ความน่าจะเป็น {p:.1f}% เกินเกณฑ์ตัดสิน {cutoff_used:.1f}%) แนะนำวัดความดันโลหิตซ้ำด้วยเครื่องวัดมาตรฐานทางการแพทย์เพื่อยืนยันผล",
+                "cutoff_used": cutoff_used,
+            }
+        else:
+            return {
+                "label": "ความเสี่ยงสูงมาก (Urgent Risk)",
+                "level": "Urgent Risk",
+                "key": "critical",
+                "color": "#dc2626",
+                "bg": "#fee2e2",
+                "icon": "🔴",
+                "rgb": (220, 38, 38),
+                "action": "ระดับความเสี่ยงสูงมากเข้าข่ายความดันโลหิตสูงอย่างมีนัยสำคัญ แนะนำพบแพทย์ที่สถานพยาบาลโดยด่วนเพื่อประเมินภาวะแทรกซ้อน",
+                "cutoff_used": cutoff_used,
+            }
 
 # ══════════════════════════════════════════════════════════
 # MAIN PREDICTION — คืน dict; รองรับ MC Dropout uncertainty (opt-in)
@@ -506,8 +719,8 @@ def predict_health_risk(
         "bodyfat": pred_bodyfat,
         "bf_cat": shape["bf_cat"], "bf_key": shape["bf_key"],
         "bf_cuts": shape["bf_cuts"],
-        "diabetes_pct": diab, "diabetes_level": get_risk_level(diab),
-        "hypertension_pct": hyp, "hypertension_level": get_risk_level(hyp),
+        "diabetes_pct": diab, "diabetes_level": get_risk_level(diab, disease="diabetes"),
+        "hypertension_pct": hyp, "hypertension_level": get_risk_level(hyp, disease="hypertension"),
         "image": img,
         "face_report": face_report,
         "device": device,
@@ -631,10 +844,14 @@ def print_report(r: dict) -> None:
         f"{r['bodyfat']:.2f} % [{r['bf_cat']}]"
     )
     print("-" * 60)
-    print("🩺 [Stage 2] คัดกรองความเสี่ยงโรค NCDs")
+    print("🩺 [Stage 2] คัดกรองความเสี่ยงโรค NCDs (Calibrated Screening Strata)")
     d, h = r["diabetes_level"], r["hypertension_level"]
-    print(f"   > โรคเบาหวาน           : {r['diabetes_pct']:.1f}% ({d['icon']} {d['label']})")
-    print(f"   > โรคความดันโลหิตสูง     : {r['hypertension_pct']:.1f}% ({h['icon']} {h['label']})")
+    print(f"   > โรคเบาหวาน           : {r['diabetes_pct']:.1f}% ({d['icon']} {d['label']} [{d['level']}])")
+    print(f"     เกณฑ์ตัดสิน (Cutoff)   : {d['cutoff_used']:.1f}%")
+    print(f"     คำแนะนำทางคลินิก     : {d['action']}")
+    print(f"   > โรคความดันโลหิตสูง     : {r['hypertension_pct']:.1f}% ({h['icon']} {h['label']} [{h['level']}])")
+    print(f"     เกณฑ์ตัดสิน (Cutoff)   : {h['cutoff_used']:.1f}%")
+    print(f"     คำแนะนำทางคลินิก     : {h['action']}")
 
     u = r.get("uncertainty")
     if u:
@@ -653,14 +870,31 @@ def print_report(r: dict) -> None:
 
 
 if __name__ == "__main__":
-    test_image = BASE_DIR.parent / "data" / "test_images" / "testpic11.png"
+    test_image = PROJECT_ROOT / "data" / "test_images" / "testpic11.png"
     m = load_all_models(verbose=True)   # ✅ โหลดครั้งเดียว ใช้ซ้ำได้
+
+    print("\n>>> [Sanity Test] ตรวจสอบเกณฑ์ Calibrated Clinical Tiers <<<")
+    sanity_cases = [
+        (3.0, "diabetes", "low"),
+        (5.2, "diabetes", "watch"),
+        (8.0, "diabetes", "high"),
+        (15.0, "diabetes", "critical"),
+        (12.0, "hypertension", "low"),
+        (25.0, "hypertension", "watch"),
+        (40.0, "hypertension", "high"),
+        (60.0, "hypertension", "critical"),
+    ]
+    for test_p, test_dis, expected_k in sanity_cases:
+        tier_out = get_risk_level(test_p, disease=test_dis)
+        status_sym = "✅" if tier_out["key"] == expected_k else "❌"
+        print(f"   {status_sym} {test_dis.capitalize()} {test_p:4.1f}% -> {tier_out['icon']} {tier_out['label']} "
+              f"[{tier_out['level']}] (key={tier_out['key']}, cutoff={tier_out['cutoff_used']:.1f}%)")
 
     print("\n>>> ทดสอบแบบที่ 1: ใส่รอบเอว (ไม่มี MC Dropout) <<<")
     print_report(predict_health_risk(test_image, age=32, gender="Male",
                                      waist_cm=80.0, lifestyle="active", models=m))
 
-    print("\n>>> ทดสอบแบบที่ 2: ไม่ใส่รอบเอว + MC Dropout (n=50) <<<")
+    print("\n>>> ทดสอบแบบที่ 2: ไม่ใส่รอบเอว + MC Dropout (n=30) <<<")
     print_report(predict_health_risk(test_image, age=32, gender="Male",
                                      waist_cm=None, lifestyle="active", models=m,
-                                     mc_dropout=True, mc_samples=50))
+                                     mc_dropout=True, mc_samples=30))

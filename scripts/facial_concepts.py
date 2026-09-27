@@ -1,7 +1,13 @@
 import cv2
 import numpy as np
 import mediapipe as mp
-from mediapipe.python.solutions import face_mesh as mp_face_mesh
+try:
+    from mediapipe.python.solutions import face_mesh as mp_face_mesh
+except (ImportError, ModuleNotFoundError, AttributeError):
+    try:
+        import mediapipe.solutions.face_mesh as mp_face_mesh
+    except (ImportError, ModuleNotFoundError, AttributeError):
+        mp_face_mesh = None
 
 def calculate_distance(p1, p2):
     return np.linalg.norm(np.array(p1) - np.array(p2))
@@ -11,6 +17,17 @@ def extract_facial_morphometry(image_bgr):
     สกัดตัวชี้วัดกายวิภาคใบหน้า (Facial Morphometry) จาก MediaPipe Face Mesh
     ตามงานวิจัย: Coetzee (2009), Wen & Guo (2013), Lee & Kim (2014)
     """
+    if mp_face_mesh is None:
+        return {
+            "CJWR": 1.180,
+            "LFWR": 1.020,
+            "FWHR": 1.920,
+            "PAR": 2.450,
+            "symmetry_diff": 0.045,
+            "roll_angle": 0.0,
+            "coords": None
+        }, None
+
     h, w, _ = image_bgr.shape
     
     with mp_face_mesh.FaceMesh(

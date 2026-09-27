@@ -1,0 +1,196 @@
+{
+    "xgb_classifier_diabetes.pkl": {
+        "features": [
+            "AGE",
+            "GENDER_NUM",
+            "BMI",
+            "WAIST_CM",
+            "TOTAL_BODY_FAT_PCT"
+        ],
+        "default_threshold": 0.5,
+        "youden_threshold": 0.07410748451948165,
+        "f2_threshold": 0.07410748451948165,
+        "test_metrics": {
+            "auc": 0.7645,
+            "brier": 0.0881,
+            "at_0.5": {
+                "threshold": 0.5,
+                "sensitivity": 0.0545,
+                "specificity": 0.9958,
+                "precision": 0.6,
+                "f1": 0.1,
+                "tn": 474,
+                "fp": 2,
+                "fn": 52,
+                "tp": 3
+            },
+            "at_youden": {
+                "threshold": 0.0741,
+                "sensitivity": 0.8182,
+                "specificity": 0.5924,
+                "precision": 0.1883,
+                "f1": 0.3061,
+                "tn": 282,
+                "fp": 194,
+                "fn": 10,
+                "tp": 45
+            },
+            "at_f2": {
+                "threshold": 0.0741,
+                "sensitivity": 0.8182,
+                "specificity": 0.5924,
+                "precision": 0.1883,
+                "f1": 0.3061,
+                "tn": 282,
+                "fp": 194,
+                "fn": 10,
+                "tp": 45
+            }
+        }
+    },
+    "xgb_classifier_diabetes_no_waist.pkl": {
+        "features": [
+            "AGE",
+            "GENDER_NUM",
+            "BMI",
+            "TOTAL_BODY_FAT_PCT"
+        ],
+        "default_threshold": 0.5,
+        "youden_threshold": 0.06363561227917672,
+        "f2_threshold": 0.06363561227917672,
+        "test_metrics": {
+            "auc": 0.762,
+            "brier": 0.0886,
+            "at_0.5": {
+                "threshold": 0.5,
+                "sensitivity": 0.0364,
+                "specificity": 0.9937,
+                "precision": 0.4,
+                "f1": 0.0667,
+                "tn": 473,
+                "fp": 3,
+                "fn": 53,
+                "tp": 2
+            },
+            "at_youden": {
+                "threshold": 0.0636,
+                "sensitivity": 0.9091,
+                "specificity": 0.4979,
+                "precision": 0.173,
+                "f1": 0.2907,
+                "tn": 237,
+                "fp": 239,
+                "fn": 5,
+                "tp": 50
+            },
+            "at_f2": {
+                "threshold": 0.0636,
+                "sensitivity": 0.9091,
+                "specificity": 0.4979,
+                "precision": 0.173,
+                "f1": 0.2907,
+                "tn": 237,
+                "fp": 239,
+                "fn": 5,
+                "tp": 50
+            }
+        }
+    },
+    "xgb_classifier_hypertension.pkl": {
+        "features": [
+            "AGE",
+            "GENDER_NUM",
+            "BMI",
+            "WAIST_CM",
+            "TOTAL_BODY_FAT_PCT"
+        ],
+        "default_threshold": 0.5,
+        "youden_threshold": 0.3311834216117859,
+        "f2_threshold": 0.16075908541679382,
+        "test_metrics": {
+            "auc": 0.7548,
+            "brier": 0.187,
+            "at_0.5": {
+                "threshold": 0.5,
+                "sensitivity": 0.4696,
+                "specificity": 0.8352,
+                "precision": 0.5944,
+                "f1": 0.5247,
+                "tn": 294,
+                "fp": 58,
+                "fn": 96,
+                "tp": 85
+            },
+            "at_youden": {
+                "threshold": 0.3312,
+                "sensitivity": 0.6851,
+                "specificity": 0.7159,
+                "precision": 0.5536,
+                "f1": 0.6123,
+                "tn": 252,
+                "fp": 100,
+                "fn": 57,
+                "tp": 124
+            },
+            "at_f2": {
+                "threshold": 0.1608,
+                "sensitivity": 0.8785,
+                "specificity": 0.429,
+                "precision": 0.4417,
+                "f1": 0.5878,
+                "tn": 151,
+                "fp": 201,
+                "fn": 22,
+                "tp": 159
+            }
+        }
+    },
+    "xgb_classifier_hypertension_no_waist.pkl": {
+        "features": [
+            "AGE",
+            "GENDER_NUM",
+            "BMI",
+            "TOTAL_BODY_FAT_PCT"
+        ],
+        "default_threshold": 0.5,
+        "youden_threshold": 0.2306763231754303,
+        "f2_threshold": 0.15449268221855164,
+        "test_metrics": {
+            "auc": 0.7573,
+            "brier": 0.1855,
+            "at_0.5": {
+                "threshold": 0.5,
+                "sensitivity": 0.4807,
+                "specificity": 0.8324,
+                "precision": 0.5959,
+                "f1": 0.5321,
+                "tn": 293,
+                "fp": 59,
+                "fn": 94,
+                "tp": 87
+            },
+            "at_youden": {
+                "threshold": 0.2307,
+                "sensitivity": 0.7624,
+                "specificity": 0.6222,
+                "precision": 0.5092,
+                "f1": 0.6106,
+                "tn": 219,
+                "fp": 133,
+                "fn": 43,
+                "tp": 138
+            },
+            "at_f2": {
+                "threshold": 0.1545,
+                "sensitivity": 0.9116,
+                "specificity": 0.4034,
+                "precision": 0.44,
+                "f1": 0.5935,
+                "tn": 142,
+                "fp": 210,
+                "fn": 16,
+                "tp": 165
+            }
+        }
+    }
+}

@@ -183,6 +183,7 @@ def mini_gauge(value, rng, steps, title):
     return fig
 
 def render_risk(name, pct, level, desc):
+    action_html = f'<div style="font-size:12px;color:#475569;margin-top:6px;line-height:1.4;">💡 <b>คำแนะนำ:</b> {level["action"]}</div>' if "action" in level else ""
     st.markdown(f"""
     <div class="risk-card" style="background:{level['bg']};border-color:{level['color']}33;">
       <div class="risk-head">
@@ -193,6 +194,7 @@ def render_risk(name, pct, level, desc):
       <div class="risk-bar"><div class="risk-fill"
         style="width:{min(pct,100):.1f}%;background:{level['color']};"></div></div>
       <div class="risk-label" style="color:{level['color']};">{level['label']}</div>
+      {action_html}
     </div>""", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════
@@ -561,13 +563,29 @@ if res:
         render_risk("ความดันโลหิตสูง (Hypertension)", res["hypertension_pct"],
                     res["hypertension_level"], "ความน่าจะเป็นที่จะมีภาวะความดันสูง")
 
-    hi = max(res["diabetes_pct"], res["hypertension_pct"])
-    if hi >= 50:
-        st.error("🔴 **แนะนำให้พบแพทย์** — ควรตรวจเลือดและวัดความดันจริงเพื่อยืนยัน")
-    elif hi >= 25:
-        st.warning("🟡 **ควรเฝ้าระวัง** — ปรับพฤติกรรมและตรวจสุขภาพประจำปีสม่ำเสมอ")
+    d_level = res["diabetes_level"]
+    h_level = res["hypertension_level"]
+    d_key = d_level.get("key", "low")
+    h_key = h_level.get("key", "low")
+
+    if "critical" in (d_key, h_key):
+        urgent_items = []
+        if d_key == "critical":
+            urgent_items.append("เบาหวาน (Urgent Risk)")
+        if h_key == "critical":
+            urgent_items.append("ความดันโลหิตสูง (Urgent Risk)")
+        st.error(f"🔴 **แนะนำให้พบแพทย์ด่วน (Urgent Referral)** — พบความเสี่ยงระดับสูงมากสำหรับ{' และ '.join(urgent_items)} ควรรับการประเมินทางคลินิกและตรวจทางห้องปฏิบัติการทันที")
+    elif "high" in (d_key, h_key):
+        pos_items = []
+        if d_key == "high":
+            pos_items.append(f"เบาหวาน (เกินเกณฑ์คัดกรอง {d_level.get('cutoff_used', 6.1):.1f}%)")
+        if h_key == "high":
+            pos_items.append(f"ความดันโลหิตสูง (เกินเกณฑ์คัดกรอง {h_level.get('cutoff_used', 33.0):.1f}%)")
+        st.warning(f"🟠 **ผลคัดกรองเบื้องต้นเป็นบวก (Screen Positive)** — {' และ '.join(pos_items)} แนะนำตรวจยืนยันด้วยผลเลือด (FPG/HbA1c) หรือวัดความดันซ้ำ")
+    elif "watch" in (d_key, h_key):
+        st.info("🟡 **ควรเฝ้าระวัง (Watchful)** — พบแนวโน้มความเสี่ยงระดับเฝ้าระวัง ควรปรับพฤติกรรมสุขภาพ ลดหวาน-มัน-เค็ม และตรวจสุขภาพประจำปี")
     else:
-        st.success("🟢 **อยู่ในเกณฑ์ดี** — รักษาพฤติกรรมสุขภาพนี้ต่อไป")
+        st.success("🟢 **อยู่ในเกณฑ์ความเสี่ยงต่ำ (Low Risk)** — ผลประเมินอยู่ในเกณฑ์มาตรฐานประชากรทั่วไป รักษาพฤติกรรมสุขภาพที่ดีนี้ต่อไป")
 
     with st.expander("🔬 ดูรายละเอียดเชิงเทคนิค"):
         fr = res.get("face_report")
