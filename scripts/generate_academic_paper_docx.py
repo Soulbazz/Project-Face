@@ -63,6 +63,8 @@ def build_ieee_pdf():
 .title { font-size: 21pt; font-style: italic; line-height: 1.15; margin-bottom: 10px; }
 .authors-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
 .authors-table td { text-align: center; vertical-align: top; font-size: 8.5pt; line-height: 1.20; border: none; padding: 0 3px; width: 33.33%; }
+.authors-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: none; }
+.authors-table td { text-align: center; vertical-align: top; font-size: 8.5pt; line-height: 1.20; border: none; padding: 0 10px; width: 50%; }
 .author-name { font-size: 9.0pt; font-weight: normal; margin-bottom: 1px; }
 .author-inst { font-size: 8.5pt; font-style: italic; }
 .author-loc { font-size: 8.5pt; font-style: normal; }
@@ -100,7 +102,14 @@ def build_ieee_pdf():
 
     BODY_HTML = """
 <style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 body {
+    margin: 0 !important;
+    padding: 0 !important;
     font-family: 'Times New Roman', serif;
     font-size: 9.5pt;
     line-height: 1.08;
@@ -108,6 +117,8 @@ body {
     color: #000;
 }
 .abstract-box {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
     margin-bottom: 5px;
     font-size: 8.8pt;
     text-align: justify;
@@ -136,6 +147,8 @@ h2 {
     text-transform: uppercase;
     margin: 7px 0 2px 0;
     letter-spacing: 0.3px;
+    break-after: avoid;
+    page-break-after: avoid;
 }
 h3 {
     font-size: 9.5pt;
@@ -143,6 +156,8 @@ h3 {
     font-style: italic;
     text-align: left;
     margin: 5px 0 1px 0;
+    break-after: avoid;
+    page-break-after: avoid;
 }
 p {
     margin: 0;
@@ -155,6 +170,7 @@ p {
     break-inside: avoid;
     page-break-inside: avoid;
     margin: 4px 0;
+    margin: 6px 0;
 }
 .table-caption {
     break-inside: avoid;
@@ -189,6 +205,7 @@ table.paper-table td {
     page-break-inside: avoid;
     text-align: center;
     margin: 4px 0;
+    margin: 6px 0;
 }
 .fig-caption {
     break-inside: avoid;
@@ -203,6 +220,8 @@ table.paper-table td {
     font-style: italic;
     margin: 2.5px 0;
     font-size: 8.8pt;
+    break-inside: avoid;
+    page-break-inside: avoid;
 }
 .ref-item {
     font-size: 7.2pt;
@@ -211,6 +230,8 @@ table.paper-table td {
     margin-left: 12pt;
     line-height: 1.08;
     text-align: left;
+    break-inside: avoid;
+    page-break-inside: avoid;
 }
 </style>
 
@@ -281,6 +302,22 @@ table.paper-table td {
     <tr><td>Hypertension (BPQ020)</td><td>Train (70%)</td><td>2,488</td><td>845</td><td>33.96%</td></tr>
     <tr><td>Hypertension (BPQ020)</td><td>Validation (15%)</td><td>533</td><td>181</td><td>33.96%</td></tr>
     <tr><td>Hypertension (BPQ020)</td><td>Held-Out Test (15%)</td><td>533</td><td>181</td><td>33.96%</td></tr>
+<div class="table-container" style="break-inside: avoid; page-break-inside: avoid; margin: 6px 0;">
+  <table style="width: 100%; border: none; border-collapse: collapse; margin: 0; padding: 0;">
+    <tr>
+      <td style="border: none; padding: 0; text-align: center;">
+        <div class="table-caption">TABLE I.  NHANES COHORT STRATIFIED PARTITIONING (N=3,540 DIABETES, N=3,554 HYPERTENSION)</div>
+        <table class="paper-table">
+          <tr><th>Target Condition</th><th>Cohort Partition</th><th>Total (N)</th><th>Positive Cases</th><th>Base Prevalence</th></tr>
+          <tr><td>Diabetes (DIQ010)</td><td>Train (70%)</td><td>2,477</td><td>256</td><td>10.33%</td></tr>
+          <tr><td>Diabetes (DIQ010)</td><td>Validation (15%)</td><td>532</td><td>55</td><td>10.34%</td></tr>
+          <tr><td>Diabetes (DIQ010)</td><td>Held-Out Test (15%)</td><td>531</td><td>55</td><td>10.36%</td></tr>
+          <tr><td>Hypertension (BPQ020)</td><td>Train (70%)</td><td>2,488</td><td>845</td><td>33.96%</td></tr>
+          <tr><td>Hypertension (BPQ020)</td><td>Validation (15%)</td><td>533</td><td>181</td><td>33.96%</td></tr>
+          <tr><td>Hypertension (BPQ020)</td><td>Held-Out Test (15%)</td><td>533</td><td>181</td><td>33.96%</td></tr>
+        </table>
+      </td>
+    </tr>
   </table>
 </div>
 
@@ -299,11 +336,22 @@ table.paper-table td {
 <div class="fig-container">
   <img src="stage2_benchmark_cm.png" style="width: 100%; max-width: 235px; height: auto;" />
   <div class="fig-caption">Fig. 1. Confusion Matrix benchmark on held-out test cohort (Diabetes With Waist): (Left) Baseline default threshold (&tau; = 0.50, 0 TP, 55 FN); (Middle) Baseline Youden's J (&tau; = 0.08, Sens 78.2%, 43 TP, 12 FN); (Right) Optimized F2 Screening (&tau; = 0.06, Sens 89.1%, 49 TP, 6 FN), rescuing 49 out of 55 diabetic cases.</div>
+<div class="fig-container" style="break-inside: avoid; page-break-inside: avoid; text-align: center; margin: 6px 0;">
+  <table style="width: 100%; border: none; border-collapse: collapse; margin: 0; padding: 0;">
+    <tr>
+      <td style="border: none; padding: 0; text-align: center;">
+        <img src="stage2_benchmark_cm.png" style="width: 100%; max-width: 236px; height: auto; display: block; margin: 0 auto;" />
+        <div class="fig-caption">Fig. 1. Confusion Matrix benchmark on held-out test cohort (Diabetes With Waist): (Left) Baseline default threshold (&tau; = 0.50, 0 TP, 55 FN); (Middle) Baseline Youden's J (&tau; = 0.08, Sens 78.2%, 43 TP, 12 FN); (Right) Optimized F2 Screening (&tau; = 0.06, Sens 89.1%, 49 TP, 6 FN), rescuing 49 out of 55 diabetic cases.</div>
+      </td>
+    </tr>
+  </table>
 </div>
 
 <div class="table-container">
   <div class="table-caption">TABLE II-A.  DIABETES MELLITUS BENCHMARK (N=531)</div>
   <table class="paper-table">
+<div class="table-container" style="break-inside: avoid; page-break-inside: avoid; margin: 6px 0;">
+  <table style="width: 100%; border: none; border-collapse: collapse; margin: 0; padding: 0;">
     <tr>
       <th style="width:20%;">Route</th>
       <th style="width:25%;">Model</th>
@@ -312,6 +360,25 @@ table.paper-table td {
       <th style="width:10%;">Sens(%)</th>
       <th style="width:10%;">Spec(%)</th>
       <th style="width:10%;">Rescued</th>
+      <td style="border: none; padding: 0; text-align: center;">
+        <div class="table-caption">TABLE II-A.  DIABETES MELLITUS BENCHMARK (N=531)</div>
+        <table class="paper-table">
+          <tr>
+            <th style="width:20%;">Route</th>
+            <th style="width:25%;">Model</th>
+            <th style="width:15%;">Cutoff (&tau;*)</th>
+            <th style="width:10%;">AUC</th>
+            <th style="width:10%;">Sens(%)</th>
+            <th style="width:10%;">Spec(%)</th>
+            <th style="width:10%;">Rescued</th>
+          </tr>
+          <tr><td>With Waist</td><td>Base (Default)</td><td>0.500</td><td>0.747</td><td>0.0%</td><td>100.0%</td><td>0</td></tr>
+          <tr><td>With Waist</td><td>Base (Youden)</td><td>0.082</td><td>0.747</td><td>78.2%</td><td>58.8%</td><td>+43</td></tr>
+          <tr><td>With Waist</td><td>Opt (F2)</td><td>0.061</td><td><b>0.763</b></td><td><b>89.1%</b></td><td>49.0%</td><td><b>+49</b></td></tr>
+          <tr><td>No Waist</td><td>Base (Default)</td><td>0.500</td><td>0.747</td><td>0.0%</td><td>100.0%</td><td>0</td></tr>
+          <tr><td>No Waist</td><td>Opt (F2)</td><td>0.060</td><td><b>0.762</b></td><td><b>90.9%</b></td><td>48.7%</td><td><b>+50</b></td></tr>
+        </table>
+      </td>
     </tr>
     <tr><td>With Waist</td><td>Base (Default)</td><td>0.500</td><td>0.747</td><td>0.0%</td><td>100.0%</td><td>0</td></tr>
     <tr><td>With Waist</td><td>Base (Youden)</td><td>0.082</td><td>0.747</td><td>78.2%</td><td>58.8%</td><td>+43</td></tr>
@@ -324,6 +391,8 @@ table.paper-table td {
 <div class="table-container">
   <div class="table-caption">TABLE II-B.  ESSENTIAL HYPERTENSION BENCHMARK (N=533)</div>
   <table class="paper-table">
+<div class="table-container" style="break-inside: avoid; page-break-inside: avoid; margin: 6px 0;">
+  <table style="width: 100%; border: none; border-collapse: collapse; margin: 0; padding: 0;">
     <tr>
       <th style="width:20%;">Route</th>
       <th style="width:25%;">Model</th>
@@ -332,6 +401,24 @@ table.paper-table td {
       <th style="width:10%;">Sens(%)</th>
       <th style="width:10%;">Spec(%)</th>
       <th style="width:10%;">Rescued</th>
+      <td style="border: none; padding: 0; text-align: center;">
+        <div class="table-caption">TABLE II-B.  ESSENTIAL HYPERTENSION BENCHMARK (N=533)</div>
+        <table class="paper-table">
+          <tr>
+            <th style="width:20%;">Route</th>
+            <th style="width:25%;">Model</th>
+            <th style="width:15%;">Cutoff (&tau;*)</th>
+            <th style="width:10%;">AUC</th>
+            <th style="width:10%;">Sens(%)</th>
+            <th style="width:10%;">Spec(%)</th>
+            <th style="width:10%;">Rescued</th>
+          </tr>
+          <tr><td>With Waist</td><td>Base (Default)</td><td>0.500</td><td>0.760</td><td>49.7%</td><td>82.4%</td><td>0</td></tr>
+          <tr><td>With Waist</td><td>Opt (F2)</td><td>0.158</td><td>0.755</td><td><b>88.4%</b></td><td>41.8%</td><td><b>+70</b></td></tr>
+          <tr><td>No Waist</td><td>Base (Default)</td><td>0.500</td><td>0.761</td><td>50.3%</td><td>82.7%</td><td>0</td></tr>
+          <tr><td>No Waist</td><td>Opt (F2)</td><td>0.155</td><td>0.757</td><td><b>90.6%</b></td><td>40.9%</td><td><b>+73</b></td></tr>
+        </table>
+      </td>
     </tr>
     <tr><td>With Waist</td><td>Base (Default)</td><td>0.500</td><td>0.760</td><td>49.7%</td><td>82.4%</td><td>0</td></tr>
     <tr><td>With Waist</td><td>Opt (F2)</td><td>0.158</td><td>0.755</td><td><b>88.4%</b></td><td>41.8%</td><td><b>+70</b></td></tr>
@@ -343,11 +430,29 @@ table.paper-table td {
 <div class="fig-container">
   <img src="stage2_benchmark_roc.png" style="width: 100%; max-width: 235px; height: auto;" />
   <div class="fig-caption">Fig. 2. Comparative ROC curves across four clinical tasks on test splits.</div>
+<div class="fig-container" style="break-inside: avoid; page-break-inside: avoid; text-align: center; margin: 6px 0;">
+  <table style="width: 100%; border: none; border-collapse: collapse; margin: 0; padding: 0;">
+    <tr>
+      <td style="border: none; padding: 0; text-align: center;">
+        <img src="stage2_benchmark_roc.png" style="width: 100%; max-width: 236px; height: auto; display: block; margin: 0 auto;" />
+        <div class="fig-caption">Fig. 2. Comparative ROC curves across four clinical tasks on test splits.</div>
+      </td>
+    </tr>
+  </table>
 </div>
 
 <div class="fig-container">
   <img src="stage2_benchmark_calibration.png" style="width: 100%; max-width: 235px; height: auto;" />
   <div class="fig-caption">Fig. 3. Probability calibration reliability diagrams (quantile binned) confirming robust posterior probability mapping.</div>
+<div class="fig-container" style="break-inside: avoid; page-break-inside: avoid; text-align: center; margin: 6px 0;">
+  <table style="width: 100%; border: none; border-collapse: collapse; margin: 0; padding: 0;">
+    <tr>
+      <td style="border: none; padding: 0; text-align: center;">
+        <img src="stage2_benchmark_calibration.png" style="width: 100%; max-width: 236px; height: auto; display: block; margin: 0 auto;" />
+        <div class="fig-caption">Fig. 3. Probability calibration reliability diagrams (quantile binned) confirming robust posterior probability mapping.</div>
+      </td>
+    </tr>
+  </table>
 </div>
 
 <h3>B. Quantitative Error Propagation Dynamics</h3>
@@ -362,6 +467,21 @@ table.paper-table td {
     <tr><td>0.0</td><td>0.00 &plusmn; 0.00%</td><td>—</td><td>0.00 &plusmn; 0.00%</td></tr>
     <tr><td>+1.0</td><td>+0.39 &plusmn; 0.54%</td><td><b>0.39</b></td><td>+1.00 &plusmn; 0.83%</td></tr>
     <tr><td>+2.0</td><td>+0.77 &plusmn; 0.72%</td><td>0.38</td><td>+1.98 &plusmn; 1.14%</td></tr>
+<div class="table-container" style="break-inside: avoid; page-break-inside: avoid; margin: 6px 0;">
+  <table style="width: 100%; border: none; border-collapse: collapse; margin: 0; padding: 0;">
+    <tr>
+      <td style="border: none; padding: 0; text-align: center;">
+        <div class="table-caption">TABLE III.  BODY FAT ATTENUATION UNDER BMI PERTURBATION</div>
+        <table class="paper-table">
+          <tr><th>Injected &Delta;BMI (kg/m<sup>2</sup>)</th><th>Mean &Delta;BF With Waist</th><th>Attenuation (&alpha;)</th><th>Mean &Delta;BF No Waist</th></tr>
+          <tr><td>-2.0</td><td>-0.80 &plusmn; 0.80%</td><td>0.40</td><td>-2.02 &plusmn; 1.24%</td></tr>
+          <tr><td>-1.0</td><td>-0.37 &plusmn; 0.50%</td><td>0.37</td><td>-1.01 &plusmn; 0.82%</td></tr>
+          <tr><td>0.0</td><td>0.00 &plusmn; 0.00%</td><td>—</td><td>0.00 &plusmn; 0.00%</td></tr>
+          <tr><td>+1.0</td><td>+0.39 &plusmn; 0.54%</td><td><b>0.39</b></td><td>+1.00 &plusmn; 0.83%</td></tr>
+          <tr><td>+2.0</td><td>+0.77 &plusmn; 0.72%</td><td>0.38</td><td>+1.98 &plusmn; 1.14%</td></tr>
+        </table>
+      </td>
+    </tr>
   </table>
 </div>
 
@@ -398,8 +518,10 @@ table.paper-table td {
 <div class="ref-item">[15] J. Bergstra and Y. Bengio, "Random search for hyper-parameter optimization," <i>J. Mach. Learn. Res.</i>, vol. 13, pp. 281–305, 2012.</div>
 """
 
+    raw_pdf_path = os.path.join(RESULTS_DIR, "_raw_story_output.pdf")
     archive = pymupdf.Archive(RESULTS_DIR)
     writer = pymupdf.DocumentWriter(PDF_OUT)
+    writer = pymupdf.DocumentWriter(raw_pdf_path)
 
     page_w, page_h = 612, 792
     margin_l = 45.4
@@ -409,6 +531,8 @@ table.paper-table td {
     col_gap = 16
     margin_r = margin_l + col_w + col_gap + col_w  # 569.4
     header_h = 185
+    header_h = 168
+    top_y = margin_t + header_h + 8
 
     header_story = pymupdf.Story(html=HEADER_HTML)
     body_story = pymupdf.Story(html=BODY_HTML, archive=archive)
@@ -426,6 +550,9 @@ table.paper-table td {
             # Reserve space above footer on page 1 column 1
             col1 = pymupdf.Rect(margin_l, margin_t + header_h + 6, margin_l + col_w, page_h - margin_b - 16)
             col2 = pymupdf.Rect(margin_l + col_w + col_gap, margin_t + header_h + 6, margin_r, page_h - margin_b)
+            # Reserve space above footer on page 1 column 1 (for IEEE copyright notice)
+            col1 = pymupdf.Rect(margin_l, top_y, margin_l + col_w, page_h - margin_b - 16)
+            col2 = pymupdf.Rect(margin_l + col_w + col_gap, top_y, margin_r, page_h - margin_b)
         else:
             col1 = pymupdf.Rect(margin_l, margin_t, margin_l + col_w, page_h - margin_b)
             col2 = pymupdf.Rect(margin_l + col_w + col_gap, margin_t, margin_r, page_h - margin_b)
@@ -451,6 +578,8 @@ table.paper-table td {
     # Add IEEE bottom-left conference notice to Page 1
     tmp_out = PDF_OUT + ".tmp.pdf"
     doc_post = pymupdf.open(PDF_OUT)
+    # Add IEEE bottom-left conference notice to Page 1 and save directly to PDF_OUT
+    doc_post = pymupdf.open(raw_pdf_path)
     if len(doc_post) > 0:
         doc_post[0].insert_text(
             pymupdf.Point(margin_l, 750),
@@ -460,8 +589,15 @@ table.paper-table td {
             color=(0, 0, 0)
         )
     doc_post.save(tmp_out)
+    doc_post.save(PDF_OUT, deflate=True)
     doc_post.close()
     os.replace(tmp_out, PDF_OUT)
+    del doc_post
+    if os.path.exists(raw_pdf_path):
+        try:
+            os.remove(raw_pdf_path)
+        except Exception:
+            pass
 
     pdf_size = os.path.getsize(PDF_OUT)
     print(f"[+] Successfully compiled Single Production PDF: {PDF_OUT} ({page_idx} pages, {pdf_size:,} bytes)")
