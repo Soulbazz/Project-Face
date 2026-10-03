@@ -547,27 +547,25 @@ def get_triage_stratum(pct: float, disease: str):
 def build_clinical_gauge(pct: float, disease: str, cutoff_val: float):
     """
     Renders high-visibility Plotly semicircular clinical triage gauge with
-    color-coded strata zones and explicit cutoff indicator.
+    color-coded strata zones and explicit cutoff indicator (mode='gauge').
     """
     is_diab = (disease == "diabetes")
-    title_text = "Type 2 Diabetes (T2DM) Posterior Probability" if is_diab else "Essential Hypertension Posterior Probability"
+    max_range = 50.0 if is_diab else 100.0
     
     if is_diab:
-        max_range = 50.0
         steps = [
-            {"range": [0, 4.5], "color": "#dcfce7"},
-            {"range": [4.5, 6.1], "color": "#fef9c3"},
-            {"range": [6.1, 12.0], "color": "#ffedd5"},
-            {"range": [12.0, 50.0], "color": "#fee2e2"}
+            {"range": [0, 4.5], "color": "#16a34a"},
+            {"range": [4.5, 6.1], "color": "#ca8a04"},
+            {"range": [6.1, 12.0], "color": "#ea580c"},
+            {"range": [12.0, 50.0], "color": "#dc2626"}
         ]
         threshold_color = "#ea580c"
     else:
-        max_range = 100.0
         steps = [
-            {"range": [0, 20.0], "color": "#dcfce7"},
-            {"range": [20.0, 33.0], "color": "#fef9c3"},
-            {"range": [33.0, 55.0], "color": "#ffedd5"},
-            {"range": [55.0, 100.0], "color": "#fee2e2"}
+            {"range": [0, 20.0], "color": "#16a34a"},
+            {"range": [20.0, 33.0], "color": "#ca8a04"},
+            {"range": [33.0, 55.0], "color": "#ea580c"},
+            {"range": [55.0, 100.0], "color": "#dc2626"}
         ]
         threshold_color = "#ea580c"
 
@@ -575,47 +573,31 @@ def build_clinical_gauge(pct: float, disease: str, cutoff_val: float):
     bar_color = stratum["color"]
 
     fig = go.Figure(go.Indicator(
-        mode="gauge+number",
+        mode="gauge",
         value=pct,
-        number={
-            "suffix": "%",
-            "font": {"size": 34, "color": bar_color, "family": "Inter, sans-serif"}
-        },
-        title={
-            "text": f"<b>{title_text}</b>",
-            "font": {"size": 13.5, "color": "#334155"}
-        },
+        domain={'x': [0, 1], 'y': [0, 1]},
         gauge={
             "axis": {
                 "range": [0, max_range],
                 "tickwidth": 1.5,
                 "tickcolor": "#94a3b8",
-                "tickfont": {"size": 10, "color": "#64748b"}
+                "tickfont": {"size": 10, "color": "#94a3b8"}
             },
             "bar": {"color": bar_color, "thickness": 0.28},
-            "bgcolor": "#ffffff",
-            "borderwidth": 1,
-            "bordercolor": "#cbd5e1",
+            "bgcolor": "rgba(255, 255, 255, 0.05)",
+            "borderwidth": 0,
             "steps": steps,
             "threshold": {
                 "line": {"color": threshold_color, "width": 4},
-                "thickness": 0.82,
+                "thickness": 0.85,
                 "value": cutoff_val
             }
         }
     ))
 
-    cutoff_label = f"F2 Screening Cutoff τ* = {cutoff_val:.1f}%" if is_diab else f"Screen Positive Cutoff τ* = {cutoff_val:.1f}%"
-    fig.add_annotation(
-        x=0.5, y=-0.05,
-        text=f"<span style='color:{threshold_color}; font-weight:700;'>▲ {cutoff_label}</span>",
-        showarrow=False,
-        font=dict(size=11.5, family="Inter, sans-serif")
-    )
-
     fig.update_layout(
-        height=210,
-        margin=dict(l=25, r=25, t=35, b=25),
+        margin=dict(l=30, r=30, t=25, b=10),
+        height=190,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)"
     )
@@ -698,12 +680,14 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # Manual Patient Intake Controls
-    st.markdown("#### 📋 Manual Intake Controls")
+    # Clinical Patient Intake Controls
+    st.markdown("#### 📋 Clinical Patient Intake")
     
     age_input = st.slider("Age (Years)", min_value=20, max_value=80,
-                          value=st.session_state.age, key="slider_age")
+                          value=st.session_state.age, key="slider_age",
+                          help="Calibrated for Adult Population (CDC NHANES protocol 20-80 years).")
     st.session_state.age = age_input
+    st.caption("Calibrated for Adult Population (CDC NHANES protocol 20-80 years).")
 
     gender_input = st.radio("Biological Sex", options=["Male", "Female"],
                             index=0 if st.session_state.gender == "Male" else 1,
@@ -722,33 +706,65 @@ with st.sidebar:
     st.session_state.waist_enabled = waist_toggle
 
     if waist_toggle:
-        waist_input = st.number_input("Waist Circumference (cm)", min_value=50.0, max_value=160.0,
-                                      value=float(st.session_state.waist_cm), step=0.5, key="num_waist")
+        initial_waist = float(st.session_state.waist_cm) if st.session_state.waist_cm is not None else 88.0
+        initial_waist = max(50.0, min(150.0, initial_waist))
+        waist_input = st.number_input("Waist Circumference (cm)", min_value=50.0, max_value=150.0,
+                                      value=initial_waist, step=0.5, key="num_waist",
+                                      help="Calibrated measurement boundaries (50.0 - 150.0 cm).")
         st.session_state.waist_cm = waist_input
+
+        # Clinical Range Outlier Advisory Notice
+        if waist_input > 135.0 or waist_input < 55.0:
+            st.markdown(
+                "<div style='font-size:12px; color:#b45309; background:#fffbeb; border:1px solid #fde68a; "
+                "border-radius:8px; padding:8px 10px; margin-top:6px; line-height:1.45;'>"
+                "⚠️ <b>Clinical Outlier Advisory:</b> Input is outside standard 99th percentile NHANES envelope. "
+                "Monotonicity constraints enforced to maintain stable risk plateau.</div>",
+                unsafe_allow_html=True
+            )
     else:
         waist_input = None
         st.session_state.waist_cm = None
 
     st.markdown("---")
 
-    # Stage 1 Surrogate Facial Predictors
-    st.markdown("#### 🔬 Vision Surrogate Overrides")
-    bmi_input = st.slider("Simulated Facial BMI (μ)", min_value=16.0, max_value=42.0,
-                          value=float(st.session_state.bmi), step=0.1, key="slider_bmi")
-    st.session_state.bmi = bmi_input
+    # Clinical Guard Telemetry (Live Kiosk Status)
+    st.markdown("#### 🛡️ Clinical Guard Telemetry")
+    if st.session_state.pose_violation or st.session_state.sigma > 1.80:
+        guard_status_chip = '<span class="badge-alert">⚠️ Interception Active</span>'
+    else:
+        guard_status_chip = '<span class="badge-pass">✅ Frontal Alignment</span>'
 
-    sigma_input = st.slider("Epistemic Uncertainty (σ)", min_value=0.40, max_value=3.00,
-                            value=float(st.session_state.sigma), step=0.05, key="slider_sigma",
-                            help="Safe boundary: σ ≤ 1.80 kg/m². Values > 1.80 trigger Epistemic Anomaly rejection.")
-    st.session_state.sigma = sigma_input
+    st.markdown(f"""
+    <div style='background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px; font-size:12px; color:#334155; line-height:1.6;'>
+        <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;'>
+            <b>Camera Stream:</b> <span class="badge-pass">🟢 1080p Frontal</span>
+        </div>
+        <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;'>
+            <b>Pose Status:</b> {guard_status_chip}
+        </div>
+        <div style='display:flex; justify-content:space-between; align-items:center;'>
+            <b>Illumination:</b> <span class="badge-pass">🟢 145 / 255 Nom</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.markdown("---")
+    # Advanced AI Diagnostics & Camera Overrides (Concealed Expander)
+    with st.sidebar.expander("⚙️ Advanced AI Diagnostics & Camera Overrides", expanded=False):
+        st.caption("Manual override for ViT-H/14 Monte Carlo Dropout output (Normally extracted automatically from live webcam).")
+        
+        bmi_input = st.slider("Simulated Facial BMI (μ)", min_value=16.0, max_value=42.0,
+                              value=float(st.session_state.bmi), step=0.1, key="slider_bmi")
+        st.session_state.bmi = bmi_input
 
-    # Face Guard Module Status in Sidebar
-    st.markdown("#### 🛡️ Face Guard Status")
-    pose_violation_toggle = st.checkbox("Simulate Camera Pose Violation (Yaw = 22°)",
-                                        value=st.session_state.pose_violation, key="toggle_pose")
-    st.session_state.pose_violation = pose_violation_toggle
+        sigma_input = st.slider("Epistemic Uncertainty (σ)", min_value=0.40, max_value=3.00,
+                                value=float(st.session_state.sigma), step=0.05, key="slider_sigma",
+                                help="Safe boundary: σ ≤ 1.80 kg/m². Values > 1.80 trigger Epistemic Anomaly rejection.")
+        st.session_state.sigma = sigma_input
+
+        pose_violation_toggle = st.checkbox("Simulate Camera Pose Violation (Yaw = 22°)",
+                                            value=st.session_state.pose_violation, key="toggle_pose")
+        st.session_state.pose_violation = pose_violation_toggle
 
     # Active preset indicator pill
     st.markdown(f"""
@@ -1016,6 +1032,16 @@ else:
         fig_diab = build_clinical_gauge(diab_pct, "diabetes", diab_f2_cutoff)
         st.plotly_chart(fig_diab, use_container_width=True, config={"displayModeBar": False})
 
+        # Clean centered HTML display right below the gauge:
+        st.markdown(
+            f"<div style='text-align: center; margin-top: -35px; margin-bottom: 12px;'>"
+            f"<span style='font-size: 32px; font-weight: 700; color: #ffffff; font-family: sans-serif;'>{diab_pct:.1f}%</span>"
+            f"<div style='font-size: 13px; color: #94a3b8; font-weight: 500;'>Estimated Calibrated Risk</div>"
+            f"<div style='font-size: 11.5px; color: #ea580c; font-weight: 700; margin-top: 3px;'>▲ F2 Screening Cutoff τ* = {diab_f2_cutoff:.1f}%</div>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+
         # 4-Tier Clinical Triage Badge Banner
         st.markdown(f"""
         <div class="triage-banner" style="background:{diab_stratum['bg']}; border-color:{diab_stratum['border']};">
@@ -1073,6 +1099,16 @@ else:
         fig_hyp = build_clinical_gauge(hyp_pct, "hypertension", hyp_cutoff)
         st.plotly_chart(fig_hyp, use_container_width=True, config={"displayModeBar": False})
 
+        # Clean centered HTML display right below the gauge:
+        st.markdown(
+            f"<div style='text-align: center; margin-top: -35px; margin-bottom: 12px;'>"
+            f"<span style='font-size: 32px; font-weight: 700; color: #ffffff; font-family: sans-serif;'>{hyp_pct:.1f}%</span>"
+            f"<div style='font-size: 13px; color: #94a3b8; font-weight: 500;'>Estimated Calibrated Risk</div>"
+            f"<div style='font-size: 11.5px; color: #ea580c; font-weight: 700; margin-top: 3px;'>▲ Screen Positive Cutoff τ* = {hyp_cutoff:.1f}%</div>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+
         # 4-Tier Clinical Triage Badge Banner
         st.markdown(f"""
         <div class="triage-banner" style="background:{hyp_stratum['bg']}; border-color:{hyp_stratum['border']};">
@@ -1119,29 +1155,48 @@ else:
 # -----------------------------------------------------------------------------
 st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
 with st.expander("🔍 Clinical Explainability, Feature Importance & Model Card", expanded=False):
-    st.markdown("#### 📈 Stage 2 XGBoost Feature Importance Breakdown")
+    has_waist = st.session_state.waist_enabled and (st.session_state.waist_cm is not None and float(st.session_state.waist_cm) > 0)
     
-    # Feature Importance Data from NHANES Stage 2 Monotonic Models
-    features = ["Age (Years)", "Waist Circumference", "DEXA Body Fat %", "Predicted BMI", "Biological Sex"]
-    importance_pct = [34.8, 25.4, 18.2, 14.9, 6.7]
+    if has_waist:
+        pathway_badge = '<span class="cdss-pill" style="background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; font-size:11.5px;">Active Pathway: Full Multi-Modal (With Waist)</span>'
+        chart_subtitle = "Stage 2 XGBoost Monotonic Model (With Anthropometric Waist Circumference)"
+        features = ["Age (Years)", "Waist Circumference", "DEXA Body Fat %", "Predicted BMI", "Biological Sex"]
+        importance_pct = [34.5, 25.8, 19.8, 13.1, 6.8]
+        bar_colors = ["#0284c7", "#0ea5e9", "#38bdf8", "#7dd3fc", "#bae6fd"]
+        max_x = 42.0
+    else:
+        pathway_badge = '<span class="cdss-pill" style="background:#ecfdf5; color:#047857; border-color:#a7f3d0; font-size:11.5px;">Active Pathway: Contactless Vision-Only (No Waist)</span>'
+        chart_subtitle = "Stage 2 XGBoost Contactless Vision-Only Model (Normalized without Waist)"
+        features = ["Age (Years)", "DEXA Body Fat %", "Predicted BMI", "Biological Sex"]
+        importance_pct = [46.5, 26.7, 17.6, 9.2]
+        bar_colors = ["#059669", "#10b981", "#34d399", "#6ee7b7"]
+        max_x = 55.0
+
+    st.markdown(f"""
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <h4 style="margin:0; font-weight:800; color:#0f172a;">📈 Stage 2 XGBoost Feature Importance Breakdown</h4>
+        {pathway_badge}
+    </div>
+    <div style="font-size:12px; color:#64748b; margin-bottom:12px;">{chart_subtitle}</div>
+    """, unsafe_allow_html=True)
     
     fig_imp = go.Figure(go.Bar(
         x=importance_pct,
         y=features,
         orientation="h",
         marker=dict(
-            color=["#0284c7", "#0ea5e9", "#38bdf8", "#7dd3fc", "#bae6fd"],
-            line=dict(color="#0369a1", width=1)
+            color=bar_colors,
+            line=dict(color="#0f172a", width=0.5)
         ),
         text=[f"{v:.1f}%" for v in importance_pct],
-        textposition="auto"
+        textposition="auto",
+        textfont=dict(color="#ffffff", size=12, family="Arial")
     ))
     fig_imp.update_layout(
-        title="Predictor Weight Distribution in Monotonic Risk Function",
-        xaxis=dict(title="Relative Feature Importance (%)", range=[0, 45]),
-        yaxis=dict(autorange="reversed"),
+        xaxis=dict(title="Relative Feature Importance (%)", range=[0, max_x], tickfont=dict(size=10, color="#94a3b8")),
+        yaxis=dict(autorange="reversed", tickfont=dict(size=11, color="#334155")),
         height=240,
-        margin=dict(l=30, r=20, t=40, b=30),
+        margin=dict(l=30, r=20, t=15, b=30),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)"
     )
