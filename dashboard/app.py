@@ -547,7 +547,9 @@ def get_triage_stratum(pct: float, disease: str):
 def build_clinical_gauge(pct: float, disease: str, cutoff_val: float):
     """
     Renders high-visibility Plotly semicircular clinical triage gauge with
-    color-coded strata zones and explicit cutoff indicator (mode='gauge').
+    color-coded strata zones, an inner black progress track (gauge.bar),
+    and a bold black pointer block (threshold at value=pct) on the topmost layer,
+    matching the clinical mockup design without any gaps or occlusion.
     """
     is_diab = (disease == "diabetes")
     max_range = 50.0 if is_diab else 100.0
@@ -559,7 +561,6 @@ def build_clinical_gauge(pct: float, disease: str, cutoff_val: float):
             {"range": [6.1, 12.0], "color": "#ea580c"},
             {"range": [12.0, 50.0], "color": "#dc2626"}
         ]
-        threshold_color = "#ea580c"
     else:
         steps = [
             {"range": [0, 20.0], "color": "#16a34a"},
@@ -567,11 +568,10 @@ def build_clinical_gauge(pct: float, disease: str, cutoff_val: float):
             {"range": [33.0, 55.0], "color": "#ea580c"},
             {"range": [55.0, 100.0], "color": "#dc2626"}
         ]
-        threshold_color = "#ea580c"
 
-    stratum = get_triage_stratum(pct, disease)
-    bar_color = stratum["color"]
-
+    # Plotly Indicator Semicircle Gauge
+    # Uses solely the inner black curved progress arc (gauge.bar) running along the circular track from 0 to pct,
+    # with the crossbar needle line removed completely on both sides.
     fig = go.Figure(go.Indicator(
         mode="gauge",
         value=pct,
@@ -583,18 +583,17 @@ def build_clinical_gauge(pct: float, disease: str, cutoff_val: float):
                 "tickcolor": "#94a3b8",
                 "tickfont": {"size": 10, "color": "#94a3b8"}
             },
-            "bar": {"color": bar_color, "thickness": 0.28},
+            "bar": {
+                "color": "#000000",
+                "thickness": 0.28
+            },
             "bgcolor": "rgba(255, 255, 255, 0.05)",
             "borderwidth": 0,
-            "steps": steps,
-            "threshold": {
-                "line": {"color": threshold_color, "width": 4},
-                "thickness": 0.85,
-                "value": cutoff_val
-            }
+            "steps": steps
         }
     ))
 
+    # Clean layout styling
     fig.update_layout(
         margin=dict(l=30, r=30, t=25, b=10),
         height=190,
@@ -1019,7 +1018,7 @@ else:
     with col_diab:
         st.markdown("""
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-            <h4 style="margin:0; font-weight:800; color:#0f172a;">🩸 Type 2 Diabetes Mellitus (T2DM)</h4>
+            <h4 style="margin:0; font-weight:800; color:#FFFFFF;">🩸 Type 2 Diabetes Mellitus (T2DM)</h4>
             <span class="cdss-pill" style="background:#f1f5f9; color:#334155; border-color:#cbd5e1;">NHANES Calibrated</span>
         </div>
         """, unsafe_allow_html=True)
@@ -1086,7 +1085,7 @@ else:
     with col_hyp:
         st.markdown("""
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-            <h4 style="margin:0; font-weight:800; color:#0f172a;">💓 Essential Hypertension</h4>
+            <h4 style="margin:0; font-weight:800; color:#FFFFFF;">💓 Essential Hypertension</h4>
             <span class="cdss-pill" style="background:#f1f5f9; color:#334155; border-color:#cbd5e1;">NHANES Calibrated</span>
         </div>
         """, unsafe_allow_html=True)
@@ -1174,7 +1173,7 @@ with st.expander("🔍 Clinical Explainability, Feature Importance & Model Card"
 
     st.markdown(f"""
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-        <h4 style="margin:0; font-weight:800; color:#0f172a;">📈 Stage 2 XGBoost Feature Importance Breakdown</h4>
+        <h4 style="margin:0; font-weight:800; color:#FFFFFF;">📈 Stage 2 XGBoost Feature Importance Breakdown</h4>
         {pathway_badge}
     </div>
     <div style="font-size:12px; color:#64748b; margin-bottom:12px;">{chart_subtitle}</div>
