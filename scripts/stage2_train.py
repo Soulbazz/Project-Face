@@ -7,6 +7,8 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, brier_score_loss, classification_report
 
+np.random.seed(42)
+
 # 1. กำหนด Path ต่างๆ
 BASE_DIR = os.path.dirname(__file__)
 WEIGHTS_DIR = os.path.join(BASE_DIR, '..', 'weights')

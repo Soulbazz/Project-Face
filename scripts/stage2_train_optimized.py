@@ -15,6 +15,8 @@ from sklearn.metrics import (
     precision_recall_curve, confusion_matrix, classification_report
 )
 
+np.random.seed(42)
+
 BASE_DIR = os.path.dirname(__file__)
 ROOT = os.path.dirname(BASE_DIR)
 WEIGHTS_DIR = os.path.join(ROOT, 'weights')

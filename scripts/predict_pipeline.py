@@ -617,20 +617,19 @@ def predict_health_risk(
         if not face_report.ok:
             raise FaceGuardError(face_report)
 
-    # ---------- STAGE 1: Face → BMI (ViT), deterministic point estimate ----------
+    # ---------- STAGE 1: Face → BMI (ViT), 25-Pass MC Dropout Point Estimate ----------
     vit_model = models["vit"]
-    vit_model.eval()  # การันตี dropout ปิดสำหรับค่าประเมินหลัก (ไม่เปลี่ยนพฤติกรรมเดิม)
     img_tensor = vit_transforms(ToTensor()(img)).unsqueeze(0).to(device)
     
-    vit_model = models["vit"]
-    vit_model.eval()
     enable_mc_dropout(vit_model)
-    
     mc_preds = []
-    with torch.no_grad():
-        for _ in range(25):
-            val = vit_model(img_tensor).item()
-            mc_preds.append(val)
+    try:
+        with torch.no_grad():
+            for _ in range(25):
+                val = vit_model(img_tensor).item()
+                mc_preds.append(val)
+    finally:
+        vit_model.eval()
             
     pred_bmi = float(np.mean(mc_preds))
     std_bmi = float(np.std(mc_preds))

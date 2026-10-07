@@ -3,7 +3,8 @@ import functools, urllib.request
 from pathlib import Path
 import pandas as pd, numpy as np
 
-RAW = Path("data/raw"); OUT = Path("data/processed")
+ROOT = Path(__file__).resolve().parent.parent
+RAW = ROOT / "data" / "raw"; OUT = ROOT / "data" / "processed"
 RAW.mkdir(parents=True, exist_ok=True); OUT.mkdir(parents=True, exist_ok=True)
 
 BASE = "https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/{yr}/DataFiles/{f}.XPT"

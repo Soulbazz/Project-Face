@@ -1,6 +1,9 @@
 import os
 import joblib
+import numpy as np
 import pandas as pd
+
+np.random.seed(42)
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error

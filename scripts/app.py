@@ -2,7 +2,17 @@
 app.py — AI Health Screening Dashboard
 รัน:  cd scripts && streamlit run app.py
 """
+import sys
 from datetime import datetime
+from pathlib import Path
+
+# Setup sys.path so the app can be run directly from repo root or scripts/
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent.resolve()
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import streamlit as st
 import plotly.graph_objects as go

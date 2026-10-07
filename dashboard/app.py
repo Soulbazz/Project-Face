@@ -304,7 +304,11 @@ def load_triage_config():
       - Diabetes: Low < 4.5%, Watchful 4.5-6.1%, Screen Positive >= 6.1%, Urgent >= 12.0%
       - Hypertension: Low < 20.0%, Watchful 20.0-33.0%, Screen Positive >= 33.0%, Urgent >= 55.0%
     """
-    threshold_path = Path("weights/thresholds.json")
+    base_dir = Path(__file__).resolve().parent
+    root_dir = base_dir.parent.resolve()
+    threshold_path = root_dir / "weights" / "thresholds.json"
+    if not threshold_path.exists():
+        threshold_path = Path("weights/thresholds.json")
     config = {
         "diabetes_f2": 0.061,       # 6.1%
         "hypertension_f2": 0.158,   # 15.8%
@@ -1189,15 +1193,29 @@ with st.expander("🔍 Clinical Explainability, Feature Importance & Model Card"
         ),
         text=[f"{v:.1f}%" for v in importance_pct],
         textposition="auto",
-        textfont=dict(color="#ffffff", size=12, family="Arial")
+        textfont=dict(color="#ffffff", size=12, family="Arial, sans-serif")
     ))
     fig_imp.update_layout(
-        xaxis=dict(title="Relative Feature Importance (%)", range=[0, max_x], tickfont=dict(size=10, color="#94a3b8")),
-        yaxis=dict(autorange="reversed", tickfont=dict(size=11, color="#334155")),
         height=240,
         margin=dict(l=30, r=20, t=15, b=30),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)"
+    )
+    fig_imp.update_yaxes(
+        tickfont=dict(
+            color='#ffffff',
+            size=13,
+            family='Arial, sans-serif'
+        ),
+        autorange="reversed",
+        automargin=True
+    )
+    fig_imp.update_xaxes(
+        range=[0, max_x],
+        tickfont=dict(color='#cbd5e1', size=11),
+        title_text="Relative Feature Importance (%)",
+        title_font=dict(color='#f8fafc', size=13),
+        gridcolor='#334155'
     )
     st.plotly_chart(fig_imp, use_container_width=True, config={"displayModeBar": False})
 
