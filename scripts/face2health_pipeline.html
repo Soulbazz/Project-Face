@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Face2Health Pipeline</title>
+<style>
+  :root {
+    --navy: #0f2a52; --blue: #1f5fbf; --blue-soft: #e8f0fb;
+    --ink: #1c2433; --muted: #5b6678; --line: #cfd8e6;
+    --gate: #b4531a; --gate-soft: #fdf0e6;
+    --out: #0b7a63; --out-soft: #e6f6f1;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; background: #dfe5ef; }
+  body { display: flex; align-items: center; justify-content: center;
+         font-family: "Segoe UI", Roboto, Arial, sans-serif; color: var(--ink); }
+
+  /* 16:9 slide that scales to the window; all sizes in cqw */
+  .slide {
+    width: min(100vw, 100vh * 16 / 9); aspect-ratio: 16 / 9;
+    container-type: inline-size; background: #fff;
+    padding: 2.4cqw 2.6cqw; display: grid;
+    grid-template-columns: 1fr 2.6cqw 1fr 2.6cqw 1fr;
+    grid-template-rows: 1fr 4.4cqw 1fr; align-items: stretch;
+  }
+
+  .card { border: .16cqw solid var(--line); border-radius: 1cqw; overflow: hidden;
+          display: flex; flex-direction: column; background: #fff; min-height: 0; }
+  .head { display: flex; align-items: center; gap: .9cqw; padding: .9cqw 1.2cqw;
+          background: var(--blue); color: #fff; }
+  .s2 .head { background: var(--navy); }
+  .num { width: 2.4cqw; height: 2.4cqw; border-radius: 50%; background: #fff; color: var(--navy);
+         font-weight: 700; font-size: 1.5cqw; display: flex; align-items: center; justify-content: center; flex: none; }
+  .head h2 { font-size: 1.55cqw; line-height: 1.15; font-weight: 700; }
+  .head small { display: block; font-size: 1.05cqw; font-weight: 400; opacity: .85; margin-top: .1cqw; }
+  .body { flex: 1; padding: 1cqw 1.2cqw; display: flex; flex-direction: column; justify-content: center; gap: .7cqw; font-size: 1.3cqw; line-height: 1.3; }
+
+  .pill { border-radius: .6cqw; padding: .55cqw .8cqw; }
+  .in  { background: var(--blue-soft); border: .12cqw solid #bcd1f1; }
+  .opt { background: #fafbfd; border: .12cqw dashed #9aa6ba; color: var(--muted); }
+  .gate { background: var(--gate-soft); border: .12cqw solid #e7b891; color: #5c2a08; }
+  .out  { background: var(--out-soft);  border: .12cqw solid #9fd8c7; color: #07483a; }
+  .pill b { font-weight: 700; }
+  .gate b { color: var(--gate); } .out b { color: var(--out); }
+  .m { font-family: "Cambria Math", "STIX Two Math", Georgia, serif; font-style: italic; }
+  .big { font-size: 1.6cqw; font-weight: 700; }
+
+  .tiers { display: grid; grid-template-columns: 1fr 1fr; gap: .5cqw; }
+  .tier { border-radius: .6cqw; padding: .5cqw; text-align: center; color: #fff; font-weight: 700; font-size: 1.2cqw; }
+  .t1 { background: #2e8b57; } .t2 { background: #b8860b; } .t3 { background: #d2691e; } .t4 { background: #b3261e; }
+
+  /* horizontal arrows */
+  .harrow { align-self: center; justify-self: center; color: var(--blue); font-size: 2.6cqw; font-weight: 700; line-height: 1; }
+
+  /* elbow from card 3 down to card 4 */
+  .elbow { grid-column: 1 / -1; position: relative; }
+  .elbow i { position: absolute; background: var(--blue); }
+  .elbow .v1 { width: .26cqw; top: 0; height: 50%; right: calc((100% - 5.2cqw) / 6 - .13cqw); }
+  .elbow .h  { height: .26cqw; top: calc(50% - .13cqw); left: calc((100% - 5.2cqw) / 6 - .13cqw); right: calc((100% - 5.2cqw) / 6 - .13cqw); }
+  .elbow .v2 { width: .26cqw; top: 50%; bottom: 0; left: calc((100% - 5.2cqw) / 6 - .13cqw); }
+  .elbow .tip { position: absolute; bottom: -.1cqw; left: calc((100% - 5.2cqw) / 6 - .75cqw);
+                width: 0; height: 0; border-left: .8cqw solid transparent; border-right: .8cqw solid transparent;
+                border-top: 1cqw solid var(--blue); background: none; }
+</style>
+</head>
+<body>
+<div class="slide">
+
+  <!-- Row 1 -->
+  <section class="card">
+    <div class="head"><div class="num">1</div><h2>Input Sources<small>Zero-hardware route</small></h2></div>
+    <div class="body">
+      <div class="pill in"><b>Face photo</b><br>2D frontal portrait (RGB)</div>
+      <div class="pill in"><b>3 self-reports</b><br>Age, Sex, Physical Activity</div>
+      <div class="pill opt"><b>Optional:</b> Waist Circumference</div>
+    </div>
+  </section>
+  <div class="harrow">→</div>
+
+  <section class="card">
+    <div class="head"><div class="num">2</div><h2>Face Guard &amp; Pose Filter<small>MediaPipe</small></h2></div>
+    <div class="body">
+      <div class="pill gate"><b>Reject if pose &gt; ±15°</b><br>pitch / yaw / roll</div>
+      <div class="pill gate"><b>Reject if</b> blur or lighting anomalies</div>
+    </div>
+  </section>
+  <div class="harrow">→</div>
+
+  <section class="card s2">
+    <div class="head"><div class="num">3</div><h2>Stage 1: ViT-H/14 + MLP<small>Frozen ImageNet-21k · 5-layer head · 25-pass MC Dropout</small></h2></div>
+    <div class="body">
+      <div class="pill out"><b>Output:</b> BMI (<span class="m">μ</span>) and uncertainty (<span class="m">σ</span>)</div>
+      <div class="pill gate"><b>Gate → manual referral</b><br>if <span class="m">σ</span> &gt; 1.80 kg/m² (4.2%) or BMI &gt; 40</div>
+    </div>
+  </section>
+
+  <!-- Connector row -->
+  <div class="elbow"><i class="v1"></i><i class="h"></i><i class="v2"></i><i class="tip"></i></div>
+
+  <!-- Row 2 -->
+  <section class="card s2">
+    <div class="head"><div class="num">4</div><h2>Stage 1.5: DEXA XGBoost<small>Tabular regressor</small></h2></div>
+    <div class="body">
+      <div class="pill in"><b>In:</b> Est. BMI, Age, Sex, PA, (Waist)</div>
+      <div class="pill out"><b>Output:</b> Predicted total body fat % (DEXA mapping)</div>
+    </div>
+  </section>
+  <div class="harrow">→</div>
+
+  <section class="card s2">
+    <div class="head"><div class="num">5</div><h2>Stage 2: Calibrated XGBoost<small>Monotonic · Platt-calibrated</small></h2></div>
+    <div class="body">
+      <div class="pill in">Shallow trees (max_depth = 3)<br>Monotone constraints (+1)<br>5-fold sigmoid calibration</div>
+      <div class="pill out"><b>Output:</b> Risk <span class="m">P(Y=1 | x)</span></div>
+    </div>
+  </section>
+  <div class="harrow">→</div>
+
+  <section class="card">
+    <div class="head"><div class="num">6</div><h2>F2 Thresholding &amp; Triage<small>Cost-sensitive cutoffs</small></h2></div>
+    <div class="body">
+      <div class="pill in"><b>Diabetes</b> <span class="m">τ</span> = 0.060 &nbsp;|&nbsp; <b>Hypertension</b> <span class="m">τ</span> = 0.155</div>
+      <div class="tiers">
+        <div class="tier t1">Low Risk</div><div class="tier t2">Watchful</div>
+        <div class="tier t3">Screen Positive</div><div class="tier t4">Urgent</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
