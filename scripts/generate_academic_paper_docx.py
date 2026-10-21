@@ -76,7 +76,7 @@ def prepare_tables(html_content):
     calculating precise point widths for MuPDF (254pt total column width) and injecting
     inline style rules directly onto cells to guarantee clean rendering without overflow.
     """
-    COL_WIDTH_PT = 254.0
+    COL_WIDTH_PT = 234.0
 
     def replace_table(match):
         table_open_tag = match.group(1)
@@ -98,7 +98,7 @@ def prepare_tables(html_content):
             new_cells = []
             for col_idx, (open_tag, content, close_tag) in enumerate(cells):
                 styles = []
-                if row_idx == 0 and col_idx < len(pt_widths):
+                if col_idx < len(pt_widths):
                     styles.append(f"width: {pt_widths[col_idx]:.1f}pt")
                 if col_idx in nw_cols:
                     styles.append("white-space: nowrap")
@@ -218,7 +218,7 @@ table.paper-table tr {
 table.paper-table {
     break-inside: avoid;
     page-break-inside: avoid;
-    width: 254pt;
+    width: 246pt;
     margin: 3px 0;
     border-collapse: collapse;
     font-size: 7.0pt;
@@ -227,7 +227,7 @@ table.paper-table {
     table-layout: fixed;
 }
 table.dense-table {
-    font-size: 6.4pt;
+    font-size: 6.0pt;
     line-height: 1.05;
 }
 table.paper-table th {
@@ -274,16 +274,29 @@ img {
     text-align: center; font-style: italic; margin: 3px 0;
     font-size: 8.5pt; break-inside: avoid; page-break-inside: avoid;
 }
-.ref-item {
+.ref-table {
+    width: 251pt;
+    border-collapse: collapse;
+    border: none;
+    font-size: 8pt;
+    line-height: 10.8pt;
+    margin-bottom: 3pt;
     break-inside: avoid;
     page-break-inside: avoid;
-    font-size: 8pt;
-    margin-left: 14pt;
-    margin-right: 0pt;
-    text-indent: -14pt;
-    margin-bottom: 3.5pt;
-    line-height: 10.8pt;
+}
+.ref-table td {
+    vertical-align: top;
     text-align: left;
+    border: none;
+    padding: 0;
+}
+.ref-num {
+    width: 18pt;
+    max-width: 18pt;
+}
+.ref-body {
+    width: 233pt;
+    max-width: 233pt;
 }
 </style>
 
@@ -312,6 +325,7 @@ img {
 <p>While Body Mass Index (BMI = weight/height&sup2;) is ubiquitous, it cannot differentiate skeletal muscle mass from adipose tissue. Dual-Energy X-ray Absorptiometry (DEXA) constitutes the diagnostic gold standard for body composition analysis, using photon attenuation to resolve bone mineral, lean soft tissue, and fat mass. The National Health and Nutrition Examination Survey (NHANES) conducted by the CDC represents a multi-ethnic dataset combining whole-body DEXA scans (total body fat percentage DXDTOPF), standardized anthropometry (BMX), laboratory biochemical assays (LBXGLU, LBXGH), and structured diagnostic interviews (DIQ010 for physician-diagnosed diabetes, BPQ020 for physician-diagnosed hypertension) across CDC NHANES survey cycles—primarily the continuous 2003–2004 cycle (Cycle C) for DEXA body composition and diagnostic interviews, alongside the 2017–2018 cycle (Cycle J) for biochemical laboratory validation—for adult participants aged 18–59 years [10].</p>
 <p>In the NHANES DEXA examination cohorts, whole-body DXA scans (DXDTOPF) were administered to designated Mobile Examination Center (MEC) participants, contracting the adult cohort aged 18–59 years to participants with complete, non-imputed whole-body scan status (DXAEXSTS = 1, indicating scan completed without major artifacts) alongside standard physical exclusions (pregnancy, scanner weight limits &gt;450 lbs, height &gt;6'5", or recent nuclear medicine or radiographic contrast barium administration within 7 days). Next, enforcing a unified complete-covariate filtering protocol (requiring valid BMI, standing waist circumference, and complete multi-domain Physical Activity Questionnaire [PAQ] sub-items without imputation to enable direct paired head-to-head benchmarking between the primary non-invasive and auxiliary waist models on the identical cohort) excluded 1,492 incomplete records (29.1% of DXA-eligible participants)—specifically, 1,180 participants excluded due to a strict listwise complete-case requirement across all PAQ sub-items without zero-imputation (requiring valid responses across vigorous/moderate occupational and recreational items PAQ605, PAQ620, PAQ650, PAQ665, and sedentary duration PAD680, while excluding refusal/don't-know codes 7 and 9) and 312 participants missing standing waist circumference or measured BMI (BMX; 1,180 + 312 = 1,492)—yielding 3,628 eligible participants (with this complete-case restriction acknowledged as a methodological limitation). Progression from 3,628 to final disease cohorts narrows to N = 3,540 for Diabetes (366 positive cases; 10.34% prevalence) after excluding 88 cases with self-reported borderline status (DIQ010 = 3), and N = 3,554 for Hypertension (1,207 positive cases; 33.96% prevalence) after excluding 74 records with incomplete BPQ020 interview responses (precisely accounting for the 14-participant discrepancy between cohorts: 3,628 - 88 = 3,540 and 3,628 - 74 = 3,554). Crucially, variables restricted to morning fasted sub-samples (contracting samples to N = 2,426) are Fasting Plasma Glucose (LBXGLU) and oral glucose tests, whereas HbA1c (LBXGH) and sphygmomanometry cover the broader MEC cohort. We adopt DIQ010 and BPQ020 as primary screening targets, with composite endpoints incorporating thresholded laboratory HbA1c (&ge; 6.5%) and measured blood pressure (&ge; 140/90 mmHg) serving as parallel secondary validation targets.</p>
 
+<div style="break-before: column; page-break-before: always;"></div>
 <h3>D. Vision Transformers and Epistemic Uncertainty Quantification</h3>
 <p>Unlike conventional convolutional residual networks (ResNet) [6] constrained by localized receptive fields, Dosovitskiy et al. [11] demonstrated that Vision Transformers (ViT) model long-range spatial dependencies across image patches through self-attention; we adapt this architecture here to capture structural relationships across distant facial regions. Pre-trained on ImageNet-21k, our ViT-H/14 architecture retains a frozen feature extraction backbone while adapting a specialized regression head. Deterministic neural networks, however, suffer from overconfident mispredictions on out-of-distribution inputs. To address this, Monte Carlo Dropout (Gal &amp; Ghahramani [12]) provides a Bayesian approximation of Gaussian process uncertainty by preserving active dropout masks during inference across the prediction head. Sampling T = 25 forward stochastic passes yields the predictive mean &mu;(x*) and epistemic variance &sigma;&sup2;(x*):</p>
 <div class="equation">&mu;(x*) = (1/T) &Sigma;<sub>t=1</sub><sup>T</sup> f<sub>W<sub>t</sub></sub>(x*), &nbsp;&nbsp;&nbsp;&nbsp; &sigma;&sup2;(x*) = [1/(T-1)] &Sigma;<sub>t=1</sub><sup>T</sup> [f<sub>W<sub>t</sub></sub>(x*) - &mu;(x*)]&sup2;</div>
@@ -328,11 +342,11 @@ img {
 
 <h2>III. METHODOLOGY</h2>
 <h3>A. Process Overview and Cascading Architecture</h3>
-<p>The Face2Health framework executes across three sequential, modular stages to screen metabolic conditions in the CDC NHANES cohort [10], integrating standard machine learning toolkits [19] and tree ensemble foundations [14]. Figure 1 depicts the end-to-end cascade, and each stage is detailed below:</p>
+<p>The Face2Health framework executes across three sequential, modular stages to screen metabolic conditions in the CDC NHANES cohort [10], integrating standard machine learning toolkits [19] and gradient-boosted tree foundations [14]. Figure 1 depicts the end-to-end cascade, and each stage is detailed below:</p>
 
 <!-- FIGURE 1 (PIPELINE ARCHITECTURE) -->
 <div class="fig-container" style="break-inside: avoid; page-break-inside: avoid;">
-  <img src="fig0_pipeline_architecture.png" style="width: 248pt; max-width: 248pt; height: 356pt;" alt="Face2Health Cascading Triage Pipeline Architecture">
+  <img src="fig0_pipeline_architecture.png" style="width: 248pt; max-width: 248pt; height: auto;" alt="Face2Health Cascading Triage Pipeline Architecture">
   <div class="fig-caption">Fig. 1. End-to-end architecture of the Face2Health pre-screening framework.</div>
 </div>
 <p>1) <b>Stage 1 (Computer Vision and Morphometry):</b> A frontal portrait is preprocessed via MediaPipe Face Mesh. If face pose exceeds &plusmn;15&deg; in pitch, yaw, or roll, or if lighting/blur variances fail boundary checks, the Face Guard rejects the frame. Validated faces are processed by ViT-H/14 configured with a frozen ImageNet-21k pre-trained backbone and a trained 5-layer MLP regression head. The training dataset comprises 3,962 facial images sourced from the curated VisualBMI benchmark dataset [7], partitioned strictly into 2,773 training (70%), 396 validation (10%), and 793 held-out testing (20%) samples partitioned by unique source profile identifiers to prevent known identity overlap across splits (though complete deduplication across anonymous Reddit uploads in VisualBMI cannot be guaranteed). The training split undergoes 5x offline training augmentation (13,865 samples). The frozen ViT-H/14 backbone connects directly to a trainable 5-layer MLP head (1280 &rarr; 640 &rarr; 320 &rarr; 160 &rarr; 80 &rarr; 1, GELU activations, Dropout 0.5) trained with AdamW (learning rate = 3&times;10<sup>-5</sup>, weight decay = 0.01, batch size = 24, AMP mixed precision, early stopping patience = 5 on validation MAE). The held-out test partition (N = 793) comprises n = 412 well-aligned frontal portraits (controlled frontal subset: achieving MAE = 2.14 kg/m&sup2;, RMSE = 2.82 kg/m&sup2;, R&sup2; = 0.68; sample BMI SD = 4.98 kg/m&sup2;) and n = 381 unconstrained in-the-wild portraits from VisualBMI (unconstrained subset: MAE = 4.47 kg/m&sup2;, RMSE = 5.62 kg/m&sup2;), pooling to MAE = 3.26 kg/m&sup2; (RMSE = 4.40 kg/m&sup2;, R&sup2; = 0.735; sample BMI SD = 8.55 kg/m&sup2;) pre-rejection. Across BMI strata on N = 793, prediction error exhibits pronounced heteroscedasticity: normal/mild overweight (BMI &lt; 25 kg/m&sup2;, n = 284) achieves MAE = 2.41 kg/m&sup2;, overweight to moderate obesity (BMI 25–35 kg/m&sup2;, n = 362) yields MAE = 3.18 kg/m&sup2;, and severe obesity (BMI &gt; 35 kg/m&sup2;, n = 147) exhibits MAE = 5.10 kg/m&sup2; (pooling to exactly [284(2.41) + 362(3.18) + 147(5.10)] / 793 = 3.26 kg/m&sup2;). Applying the MC Dropout rejection threshold (&sigma; &gt; 1.80 kg/m&sup2;, selected at the 95th percentile of validation set uncertainty, rejecting 4.2% rather than 5.0% on the held-out test split due to slightly lower upper-tail uncertainty dispersion in the test partition) exploits the Spearman rank correlation between predictive uncertainty &sigma; and absolute BMI error |y&#770; - y| (&rho; = 0.38, p &lt; 0.001 on N = 793): the top 2.0% most uncertain frames (16 frames) exhibit true MAE = 8.21 kg/m&sup2;, while the subsequent 2.2% (17 frames, spanning 2.0% to 4.2%) exhibit MAE = 6.69 kg/m&sup2;, yielding a combined weighted error of [16(8.21) + 17(6.69)] / 33 = 7.43 kg/m&sup2; (RMSE = 8.62 kg/m&sup2;, 2.4-fold higher than accepted frames) across all 33 rejected frames (4.2%). Consequently, filtering at 0%, 2.0% (16 frames), 4.2% (33 frames, n = 760 accepted), and 10.0% (79 frames) progressively reduces pooled test MAE from 3.26 &rarr; 3.16 &rarr; 3.08 &rarr; 2.95 kg/m&sup2; (RMSE = 4.12 kg/m&sup2; at 4.2%), whereas random 4.2% rejection leaves MAE unchanged at 3.26 kg/m&sup2;. In downstream NHANES evaluation, individuals with severe obesity (BMI &gt; 40 kg/m&sup2;, 7.8% of cohort) were fully retained in all sensitivity calculations; in operational deployment, routing both &sigma; &gt; 1.80 and extreme estimated BMI &gt; 40 kg/m&sup2; to manual physical measurement yields an aggregate referral rate of approximately 11.7% (1 - [0.958 &times; 0.922] = 11.67%, assuming statistical independence). In parallel, landmark geometry extracts LFWR (r = 0.42), CJWR (r = -0.38), PAR (r = 0.46), and FWHR (r = 0.35; all p &lt; 0.001, Pearson correlation with ground-truth BMI on N = 793) as visual explainability proxies for clinical dashboard feedback.</p>
@@ -342,7 +356,7 @@ img {
 <!-- TABLE I -->
 <div class="table-container" style="break-inside: avoid; page-break-inside: avoid;">
   <div class="table-caption">TABLE I. NHANES ADULT COHORT PARTICIPANT FLOW AND PARTITIONING</div>
-  <table class="paper-table" data-w="26.8,34,12,12.4,11.2">
+  <table class="paper-table" data-w="28.0,35.0,12.5,12.5,12.0">
     <tr>
       <th>Filtering Step</th>
       <th>Criteria / Description</th>
@@ -380,7 +394,7 @@ img {
 <!-- TABLE II -->
 <div class="table-container" style="break-inside: avoid; page-break-inside: avoid;">
   <div class="table-caption">TABLE II. STAGE 1 VISION AND STAGE 1.5 DEXA REGRESSION BENCHMARKS</div>
-  <table class="paper-table" data-w="25.4,10.4,23.6,10.4,10.4,4.4,10.6">
+  <table class="paper-table" data-w="24.0,11.0,24.0,11.0,11.0,5.0,14.0">
     <tr style="break-inside: avoid; page-break-inside: avoid;">
       <th>Model</th>
       <th>Target</th>
@@ -404,7 +418,6 @@ img {
 <p><b>Parametric and Residual Noise Sweeps:</b> Because the controlled frontal subset RMSE (2.82 kg/m&sup2;) was measured on a sub-cohort with narrower BMI dispersion (SD = 4.98 kg/m&sup2;) than our empirical NHANES cohort (SD = 7.18 kg/m&sup2; across N = 3,540, where 18.0% of adults exhibit BMI &gt; 35 kg/m&sup2;), realistic deployment error centers in the pooled-to-unconstrained range (&sigma;<sub>sim</sub> = 4.40–5.60 kg/m&sup2;), bounded below by controlled laboratory capture (&sigma;<sub>sim</sub> = 2.82 kg/m&sup2;). Across 100 Monte Carlo noise draws (seeds 0–99, reporting mean &plusmn; SD alongside 95% CIs for &Delta;AUC vs the demographic-only baseline [Age + Sex + PA: AUC = 0.712 for diabetes, 0.708 for hypertension] across 100 draws &times; 1,000 paired bootstrap replicates, computed via percentile aggregation across the pooled 100,000 draw-bootstrap replicate differences): at nominal reference &sigma;<sub>sim</sub> = 2.14 kg/m&sup2;, Face2Health yields &Delta;AUC = +0.050 (95% CI: +0.029 to +0.070, p &lt; 0.001) for diabetes and &Delta;AUC = +0.049 (95% CI: +0.031 to +0.066, p &lt; 0.001) for hypertension; at laboratory RMSE noise &sigma;<sub>sim</sub> = 2.82 kg/m&sup2;, 100-draw evaluation achieves Sens = 88.7% &plusmn; 2.4%, Spec = 47.3% &plusmn; 1.8%, and AUC = 0.757 &plusmn; 0.006 for diabetes (&Delta;AUC = +0.045, 95% CI: +0.023 to +0.067, p &lt; 0.001) and Sens = 89.2% &plusmn; 1.6%, Spec = 39.6% &plusmn; 1.5%, and AUC = 0.752 &plusmn; 0.005 for hypertension (&Delta;AUC = +0.044, 95% CI: +0.026 to +0.063, p &lt; 0.001); at pooled test noise &sigma;<sub>sim</sub> = 4.40 kg/m&sup2;, performance reaches Sens = 85.1% &plusmn; 3.2%, Spec = 45.6% &plusmn; 2.1%, and AUC = 0.745 &plusmn; 0.009 for diabetes (&Delta;AUC = +0.033, 95% CI: +0.009 to +0.057, p = 0.007) and Sens = 86.4% &plusmn; 2.1%, Spec = 38.2% &plusmn; 1.8%, and AUC = 0.741 &plusmn; 0.007 for hypertension (&Delta;AUC = +0.033, 95% CI: +0.014 to +0.053, p = 0.001); and under unconstrained social media noise &sigma;<sub>sim</sub> = 5.60 kg/m&sup2;, performance contracts to Sens = 81.3% &plusmn; 3.9%, Spec = 43.9% &plusmn; 2.4%, and AUC = 0.735 &plusmn; 0.011 for diabetes (&Delta;AUC = +0.024, 95% CI: -0.002 to +0.049, p = 0.068) and Sens = 83.7% &plusmn; 2.5%, Spec = 37.0% &plusmn; 2.0%, and AUC = 0.732 &plusmn; 0.009 for hypertension (&Delta;AUC = +0.025, 95% CI: +0.003 to +0.046, p = 0.026).</p>
 
 
-<div style="break-before: column; page-break-before: always;"></div>
 <!-- FIGURE 1 -->
 <div class="fig-container" style="break-inside: avoid; page-break-inside: avoid;">
   <img src="fig1_stage15_scatter.png" style="width: 248pt; max-width: 248pt; height: 251pt;" alt="Stage 1.5 DEXA Scatter Plot">
@@ -416,13 +429,10 @@ img {
 <p>Under BMI-decile stratified empirical residual resampling across 100 Monte Carlo draws (seeds 0–99), drawing from the pooled test set (N = 793 residuals) yielded AUC = 0.744 &plusmn; 0.008 (Sens = 84.5% &plusmn; 2.9%, Spec = 45.2% &plusmn; 2.0%) for diabetes and AUC = 0.740 &plusmn; 0.006 (Sens = 86.2% &plusmn; 1.9%, Spec = 38.1% &plusmn; 1.7%) for hypertension, whereas resampling unconstrained social media residuals (n = 381 VisualBMI) yielded AUC = 0.734 &plusmn; 0.010 (Sens = 80.9% &plusmn; 3.6%, Spec = 43.7% &plusmn; 2.3%) for diabetes and AUC = 0.731 &plusmn; 0.008 (Sens = 83.4% &plusmn; 2.4%, Spec = 36.9% &plusmn; 1.9%) for hypertension; this BMI-stratified empirical residual resampling provides a more realistic representation than fixed Gaussian perturbation by capturing amplified vision estimation error within severe obesity (BMI &gt; 35 kg/m&sup2;), where metabolic disease prevalence is heavily concentrated. While fixing clean validation cutoffs (&tau; = 0.060 / 0.155) under &sigma;<sub>sim</sub> = 5.60 kg/m&sup2; reduces sensitivity, noise-aware threshold recalibration on perturbed validation sets (&tau; = 0.048 / 0.132) restores ~90% sensitivity (89.1% at 36.6% specificity for diabetes; 89.5% at 32.7% specificity for hypertension). Compared against a simulated self-reported BMI baseline (&sigma;<sub>self</sub> = 1.50 kg/m&sup2;, yielding 100-draw mean AUC = 0.764 for diabetes and 0.759 for hypertension; modeled as zero-mean Gaussian noise without accounting for systematic high-BMI under-reporting bias), for diabetes (and hypertension), facial estimation shows no statistically significant difference compared to simulated self-report under ideal laboratory noise at &sigma;<sub>sim</sub> = 2.82 kg/m&sup2; (diabetes &Delta;AUC = -0.007, 95% CI: -0.020 to +0.005; hypertension &Delta;AUC = -0.007, 95% CI: -0.017 to +0.003), but becomes significantly less accurate under pooled noise at &sigma;<sub>sim</sub> = 4.40 kg/m&sup2; (diabetes &Delta;AUC = -0.019, 95% CI: -0.037 to -0.002; hypertension &Delta;AUC = -0.018, 95% CI: -0.032 to -0.004) and unconstrained noise at &sigma;<sub>sim</sub> = 5.60 kg/m&sup2; (diabetes &Delta;AUC = -0.029, 95% CI: -0.050 to -0.010; hypertension &Delta;AUC = -0.027, 95% CI: -0.044 to -0.010). Consequently, camera-based estimation is positioned strictly as a fallback when neither physical scales nor reliable self-reported anthropometrics are obtainable.</p>
 
 
-<p><b>Secondary Composite Label Validation:</b> Secondary sensitivity analyses evaluated the primary models (fixed at &tau; = 0.060 and &tau; = 0.155) against objective composite diagnostic criteria: (1) for composite diabetes (DIQ010 = 1 OR HbA1c &ge; 6.5%; N = 531, 68 positive cases, 12.81% prevalence), the model achieved AUC = 0.758 (95% CI: 0.701–0.815) and 88.2% F2 sensitivity (60/68 cases) at 49.5% specificity (229/463 true negatives, as 10 of the 13 undiagnosed cases were already flagged positive at &tau; = 0.060 while 3 shifted from negative controls); in the undiagnosed subgroup (negative self-reported diagnosis [recoded binary DIQ010 = 0; raw code 2] with HbA1c &ge; 6.5%, comprising 13/68 [19.1%] of diabetic cases), sensitivity contracted to 76.9% (10/13 cases, 95% CI: 46.2%–95.0%); (2) for composite hypertension (BPQ020 = 1 OR measured SBP &ge; 140 / DBP &ge; 90 mmHg; N = 533, 212 positive cases, 39.77% prevalence), the model achieved AUC = 0.752 (95% CI: 0.710–0.794) and 89.2% F2 sensitivity (189/212 cases) at 43.0% specificity (138/321 true negatives, reflecting 25 of 31 undiagnosed cases captured among prior false positives and 6 shifting from true negatives), with undiagnosed sensitivity contracting to 80.6% (25/31 cases, 95% CI: 62.5%–92.5%, representing 14.6% [31/212] of cases; vs 90.9% and 90.6% under diagnosed targets), where confidence intervals remain wide due to modest subgroup sample sizes and survey single-occasion HbA1c or blood pressure values represent preliminary screening indicators requiring clinical confirmation; and (3) re-incorporating self-reported borderline status (DIQ010 = 3; 11 test cases, N = 542) into negative controls yielded AUC = 0.755 (95% CI: 0.693–0.817).</p>
-
-<div style="break-before: column; page-break-before: always;"></div>
 <!-- TABLE III-A -->
 <div class="table-container" style="break-inside: avoid; page-break-inside: avoid;">
   <div class="table-caption">TABLE III. DIABETES (DIQ010) CLASSIFICATION BENCHMARK</div>
-  <table class="paper-table dense-table" data-w="18.6,11.2,9,14.1,14.1,14.1,14.1">
+  <table class="paper-table dense-table" data-w="17.0,10.5,8.5,16.0,16.0,16.0,16.0">
     <tr>
       <th>Model</th>
       <th>Rule</th>
@@ -445,10 +455,12 @@ img {
   <div class="table-note">Note: N = 531 held-out test split. Values in parentheses indicate 95% CI. Single-draw reference benchmark at &sigma;<sub>sim</sub> = 2.14 kg/m&sup2;, seed = 42.</div>
 </div>
 
+<p><b>Secondary Composite Label Validation:</b> Secondary sensitivity analyses evaluated the primary models (fixed at &tau; = 0.060 and &tau; = 0.155) against objective composite diagnostic criteria: (1) for composite diabetes (DIQ010 = 1 OR HbA1c &ge; 6.5%; N = 531, 68 positive cases, 12.81% prevalence), the model achieved AUC = 0.758 (95% CI: 0.701–0.815) and 88.2% F2 sensitivity (60/68 cases) at 49.5% specificity (229/463 true negatives, as 10 of the 13 undiagnosed cases were already flagged positive at &tau; = 0.060 while 3 shifted from negative controls); in the undiagnosed subgroup (negative self-reported diagnosis [recoded binary DIQ010 = 0; raw code 2] with HbA1c &ge; 6.5%, comprising 13/68 [19.1%] of diabetic cases), sensitivity contracted to 76.9% (10/13 cases, 95% CI: 46.2%–95.0%); (2) for composite hypertension (BPQ020 = 1 OR measured SBP &ge; 140 / DBP &ge; 90 mmHg; N = 533, 212 positive cases, 39.77% prevalence), the model achieved AUC = 0.752 (95% CI: 0.710–0.794) and 89.2% F2 sensitivity (189/212 cases) at 43.0% specificity (138/321 true negatives, reflecting 25 of 31 undiagnosed cases captured among prior false positives and 6 shifting from true negatives), with undiagnosed sensitivity contracting to 80.6% (25/31 cases, 95% CI: 62.5%–92.5%, representing 14.6% [31/212] of cases; vs 90.9% and 90.6% under diagnosed targets), where confidence intervals remain wide due to modest subgroup sample sizes and survey single-occasion HbA1c or blood pressure values represent preliminary screening indicators requiring clinical confirmation; and (3) re-incorporating self-reported borderline status (DIQ010 = 3; 11 test cases, N = 542) into negative controls yielded AUC = 0.755 (95% CI: 0.693–0.817).</p>
+
 <!-- TABLE III-B -->
 <div class="table-container" style="break-inside: avoid; page-break-inside: avoid;">
   <div class="table-caption">TABLE IV. HYPERTENSION (BPQ020) CLASSIFICATION BENCHMARK</div>
-  <table class="paper-table dense-table" data-w="18.6,11.2,9,14.1,14.1,14.1,14.1">
+  <table class="paper-table dense-table" data-w="17.0,10.5,8.5,16.0,16.0,16.0,16.0">
     <tr>
       <th>Model</th>
       <th>Rule</th>
@@ -485,11 +497,10 @@ img {
   <div class="fig-caption">Fig. 3. ROC curves for diabetes (DIQ010, top) and hypertension (BPQ020, bottom) at &sigma;<sub>sim</sub> = 2.14 kg/m&sup2;.</div>
 </div>
 
-<div style="break-before: column; page-break-before: always;"></div>
 <!-- TABLE V -->
 <div class="table-container" style="break-inside: avoid; page-break-inside: avoid;">
   <div class="table-caption">TABLE V. COMPONENT ABLATION STUDY ON THE DIABETES TEST COHORT</div>
-  <table class="paper-table" data-w="36.3,9.4,12.4,12.4,10.4,15">
+  <table class="paper-table" data-w="38.0,10.0,13.0,13.0,11.0,15.0">
     <tr>
       <th>Configuration</th>
       <th>AUC</th>
@@ -519,7 +530,7 @@ img {
 
 <div class="table-container" style="break-inside: avoid; page-break-inside: avoid;">
   <div class="table-caption">TABLE VI. BODY FAT SHIFT UNDER BMI PERTURBATION SWEEPS</div>
-  <table class="paper-table" data-w="17.4,25.4,17.4,36.9">
+  <table class="paper-table" data-w="18.0,26.0,18.0,38.0">
     <tr>
       <th>Injected &Delta;BMI</th>
       <th>Mean &Delta;BF Waist (pp)</th>
@@ -550,7 +561,7 @@ img {
 <!-- TABLE VII -->
 <div class="table-container" style="break-inside: avoid; page-break-inside: avoid;">
   <div class="table-caption">TABLE VII. 4-TIER CLINICAL TRIAGE STRATA METRICS</div>
-  <table class="paper-table dense-table" data-w="12.4,18.3,11.4,11.4,12.4,12.4,17">
+  <table class="paper-table dense-table" data-w="13.0,19.0,12.0,12.0,13.0,13.0,18.0">
     <tr>
       <th>Triage Tier</th>
       <th>Probability Range</th>
@@ -611,29 +622,28 @@ img {
 <h2>VII. CONCLUSION AND FUTURE WORK</h2>
 <p>This study established <b>Face2Health</b>, demonstrating that passive computer vision coupled with calibrated Gradient-Boosted Trees provides modest pre-screening utility as a zero-hardware fallback when physical scales or self-reported anthropometrics are unavailable. Across held-out NHANES test partitions under realistic pooled-to-unconstrained Gaussian noise (&sigma;<sub>sim</sub> = 4.40–5.60 kg/m&sup2;) and BMI-stratified empirical residual resampling, the primary contactless pipeline achieves 80.9%–85.1% sensitivity for Diabetes and 83.4%–86.4% sensitivity for Hypertension (compared to 88.7% / 89.2% under laboratory RMSE &sigma;<sub>sim</sub> = 2.82 kg/m&sup2; and 90.91% / 90.61% in reference tables at &sigma;<sub>sim</sub> = 2.14 kg/m&sup2;), retaining modest but statistically significant discriminative gains over demographics up to &sigma;<sub>sim</sub> = 4.40 kg/m&sup2; while attenuating to statistical non-significance for diabetes at &sigma;<sub>sim</sub> = 5.60 kg/m&sup2;. Future work includes: (1) prospective multicenter clinical trials in Southeast Asian community clinics; (2) integrating remote photoplethysmography (rPPG) for non-contact arterial pulse wave analysis; (3) deploying lightweight ONNX models for mobile edge triage kiosks; and (4) noise-augmented Stage 2 training to mitigate accuracy degradation under unconstrained low-quality imaging.</p>
 
-<div style="break-before: column; page-break-before: always;"></div>
 <h2>REFERENCES</h2>
-<div class="ref-item">[1] World Health Organization, <i>Noncommunicable Diseases: Progress Monitor 2020</i>, Geneva, Switzerland: WHO, 2020, and WHO Fact Sheet, "Noncommunicable diseases," 2022.</div>
-<div class="ref-item">[2] International Diabetes Federation, <i>IDF Diabetes Atlas</i>, 10th ed. Brussels, Belgium: IDF, 2021.</div>
-<div class="ref-item">[3] V. Coetzee, D. I. Perrett, and I. D. Stephen, "Facial adiposity: A reliable cue to health?" <i>Perception</i>, vol. 38, no. 11, pp. 1700–1711, 2009.</div>
-<div class="ref-item">[4] L. Wen and G. Guo, "A computational approach to body mass index prediction from face images," <i>Image and Vision Computing</i>, vol. 31, no. 5, pp. 392–400, 2013.</div>
-<div class="ref-item">[5] B. J. Lee and J. Y. Kim, "Predicting visceral obesity based on facial characteristics," <i>BMC Complement. Altern. Med.</i>, vol. 14, p. 248, 2014.</div>
-<div class="ref-item">[6] K. He, X. Zhang, S. Ren, and J. Sun, "Deep residual learning for image recognition," in <i>Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR)</i>, 2016, pp. 770–778.</div>
-<div class="ref-item">[7] E. Kocabey, M. Camurcu, F. Ofli, Y. Aytar, J. Marin, A. Torralba, and I. Weber, "Face-to-BMI: Using Computer Vision to Infer Body Mass Index on Social Media," in <i>Proc. 11th Int. AAAI Conf. Web and Social Media (ICWSM)</i>, 2017, pp. 572–575.</div>
-<div class="ref-item">[8] I. D. Stephen, V. Hiew, V. Coetzee, B. P. Tiddeman, and D. I. Perrett, "Facial Shape Analysis Identifies Valid Cues to Aspects of Physiological Health in Caucasian, Asian, and African Populations," <i>Front. Psychol.</i>, vol. 8, p. 1883, 2017.</div>
-<div class="ref-item">[9] M. Jiang, G. Guo, and G. Mu, "Visual BMI estimation from face images using a label distribution based method," <i>Comput. Vis. Image Underst.</i>, vol. 197–198, p. 102985, 2020.</div>
-<div class="ref-item">[10] Centers for Disease Control and Prevention (CDC), <i>National Health and Nutrition Examination Survey (NHANES): Body Composition Procedures Manual</i> and Dual-Energy X-ray Absorptiometry (DXX) Data Documentation (2003–2004 and 2017–2018 cycles), U.S. Dept. of Health &amp; Human Services.</div>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[1]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">World Health Organization, <i>Noncommunicable Diseases: Progress Monitor 2020</i>, Geneva, Switzerland: WHO, 2020, and WHO Fact Sheet, "Noncommunicable diseases," 2022.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[2]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">International Diabetes Federation, <i>IDF Diabetes Atlas</i>, 10th ed. Brussels, Belgium: IDF, 2021.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[3]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">V. Coetzee, D. I. Perrett, and I. D. Stephen, "Facial adiposity: A reliable cue to health?" <i>Perception</i>, vol. 38, no. 11, pp. 1700–1711, 2009.</td></tr></table>
 <div style="break-before: column; page-break-before: always;"></div>
-<div class="ref-item">[11] A. Dosovitskiy et al., "An image is worth 16x16 words: Transformers for image recognition at scale," in <i>Proc. Int. Conf. Learn. Represent. (ICLR)</i>, 2021.</div>
-<div class="ref-item">[12] Y. Gal and Z. Ghahramani, "Dropout as a bayesian approximation: Representing model uncertainty in deep learning," in <i>Proc. Int. Conf. Mach. Learn. (ICML)</i>, 2016, pp. 1050–1059.</div>
-<div class="ref-item">[13] T. Chen and C. Guestrin, "XGBoost: A scalable tree boosting system," in <i>Proc. 22nd ACM SIGKDD Int. Conf. Knowl. Discov. Data Min.</i>, 2016, pp. 785–794.</div>
-<div class="ref-item">[14] Z.-H. Zhou, <i>Ensemble Methods: Foundations and Algorithms</i>. Boca Raton, FL: CRC Press, 2012.</div>
-<div class="ref-item">[15] J. C. Platt, "Probabilistic outputs for support vector machines and comparisons to regularized likelihood methods," in <i>Advances in Large Margin Classifiers</i>, A. J. Smola, P. Bartlett, B. Schölkopf, and D. Schuurmans, Eds. Cambridge, MA: MIT Press, 2000, pp. 61–74.</div>
-<div class="ref-item">[16] A. Niculescu-Mizil and R. Caruana, "Predicting good probabilities with supervised learning," in <i>Proc. 22nd Int. Conf. Mach. Learn. (ICML)</i>, 2005, pp. 625–632.</div>
-<div class="ref-item">[17] W. J. Youden, "Index for rating diagnostic tests," <i>Cancer</i>, vol. 3, no. 1, pp. 32–35, 1950.</div>
-<div class="ref-item">[18] C. Elkan, "The foundations of cost-sensitive learning," in <i>Proc. 17th Int. Joint Conf. Artif. Intell. (IJCAI)</i>, 2001, pp. 973–978.</div>
-<div class="ref-item">[19] F. Pedregosa et al., "Scikit-learn: Machine learning in Python," <i>J. Mach. Learn. Res.</i>, vol. 12, pp. 2825–2830, 2011.</div>
-<div class="ref-item">[20] J. Bergstra and Y. Bengio, "Random search for hyper-parameter optimization," <i>J. Mach. Learn. Res.</i>, vol. 13, pp. 281–305, 2012.</div>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[4]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">L. Wen and G. Guo, "A computational approach to body mass index prediction from face images," <i>Image and Vision Computing</i>, vol. 31, no. 5, pp. 392–400, 2013.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[5]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">B. J. Lee and J. Y. Kim, "Predicting visceral obesity based on facial characteristics," <i>BMC Complement. Altern. Med.</i>, vol. 14, p. 248, 2014.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[6]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">K. He, X. Zhang, S. Ren, and J. Sun, "Deep residual learning for image recognition," in <i>Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR)</i>, 2016, pp. 770–778.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[7]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">E. Kocabey, M. Camurcu, F. Ofli, Y. Aytar, J. Marin, A. Torralba, and I. Weber, "Face-to-BMI: Using Computer Vision to Infer Body Mass Index on Social Media," in <i>Proc. 11th Int. AAAI Conf. Web and Social Media (ICWSM)</i>, 2017, pp. 572–575.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[8]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">I. D. Stephen, V. Hiew, V. Coetzee, B. P. Tiddeman, and D. I. Perrett, "Facial Shape Analysis Identifies Valid Cues to Aspects of Physiological Health in Caucasian, Asian, and African Populations," <i>Front. Psychol.</i>, vol. 8, p. 1883, 2017.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[9]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">M. Jiang, G. Guo, and G. Mu, "Visual BMI estimation from face images using a label distribution based method," <i>Comput. Vis. Image Underst.</i>, vol. 197–198, p. 102985, 2020.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[10]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">Centers for Disease Control and Prevention (CDC), <i>National Health and Nutrition Examination Survey (NHANES): Body Composition Procedures Manual</i> and Dual-Energy X-ray Absorptiometry (DXX) Data Documentation (2003–2004 and 2017–2018 cycles), U.S. Dept. of Health &amp; Human Services.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[11]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">A. Dosovitskiy et al., "An image is worth 16x16 words: Transformers for image recognition at scale," in <i>Proc. Int. Conf. Learn. Represent. (ICLR)</i>, 2021.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[12]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">Y. Gal and Z. Ghahramani, "Dropout as a bayesian approximation: Representing model uncertainty in deep learning," in <i>Proc. Int. Conf. Mach. Learn. (ICML)</i>, 2016, pp. 1050–1059.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[13]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">T. Chen and C. Guestrin, "XGBoost: A scalable tree boosting system," in <i>Proc. 22nd ACM SIGKDD Int. Conf. Knowl. Discov. Data Min.</i>, 2016, pp. 785–794.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[14]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">Z.-H. Zhou, <i>Ensemble Methods: Foundations and Algorithms</i>. Boca Raton, FL: CRC Press, 2012.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[15]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">J. C. Platt, "Probabilistic outputs for support vector machines and comparisons to regularized likelihood methods," in <i>Advances in Large Margin Classifiers</i>, A. J. Smola, P. Bartlett, B. Schölkopf, and D. Schuurmans, Eds. Cambridge, MA: MIT Press, 2000, pp. 61–74.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[16]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">A. Niculescu-Mizil and R. Caruana, "Predicting good probabilities with supervised learning," in <i>Proc. 22nd Int. Conf. Mach. Learn. (ICML)</i>, 2005, pp. 625–632.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[17]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">W. J. Youden, "Index for rating diagnostic tests," <i>Cancer</i>, vol. 3, no. 1, pp. 32–35, 1950.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[18]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">C. Elkan, "The foundations of cost-sensitive learning," in <i>Proc. 17th Int. Joint Conf. Artif. Intell. (IJCAI)</i>, 2001, pp. 973–978.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[19]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">F. Pedregosa et al., "Scikit-learn: Machine learning in Python," <i>J. Mach. Learn. Res.</i>, vol. 12, pp. 2825–2830, 2011.</td></tr></table>
+<table class="ref-table"><tr><td class="ref-num" style="width: 18pt; vertical-align: top; text-align: left; border: none; padding: 0;">[20]</td><td class="ref-body" style="width: 233pt; vertical-align: top; text-align: left; border: none; padding: 0;">J. Bergstra and Y. Bengio, "Random search for hyper-parameter optimization," <i>J. Mach. Learn. Res.</i>, vol. 13, pp. 281–305, 2012.</td></tr></table>
 """
 
     processed_body_html = prepare_tables(BODY_HTML)
