@@ -867,7 +867,7 @@ def print_report(r: dict) -> None:
 
 
 if __name__ == "__main__":
-    test_image = PROJECT_ROOT / "data" / "test_images" / "testpic11.png"
+    test_image = PROJECT_ROOT / "data" / "test_images" / "bench_cristiano_ronaldo_01.png"
     m = load_all_models(verbose=True)   # ✅ โหลดครั้งเดียว ใช้ซ้ำได้
 
     print("\n>>> [Sanity Test] ตรวจสอบเกณฑ์ Calibrated Clinical Tiers <<<")

@@ -38,6 +38,7 @@ weights/*.pkl
 # Image Repositories
 data/Images/
 data/test_images/
+!data/test_images/
 
 # SAS Transport Files & Heavy Processed CSVs
 *.xpt

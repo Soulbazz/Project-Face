@@ -215,7 +215,7 @@ Project Face/
 │   │   ├── BMX_C.xpt, BMX_J.XPT, BPQ_C.xpt, BPQ_J.XPT, BPX_J.XPT
 │   │   ├── DEMO_C.xpt, DEMO_J.XPT, DIQ_C.xpt, DIQ_J.XPT
 │   │   ├── DXXAG_C.xpt, DXXAG_J.XPT, DXX_J.XPT, GHB_J.XPT, GLU_J.XPT, PAQ_C.xpt
-│   ├── test_images/                  # Curated face test photographs (testpic01.png - testpic13.png)
+│   ├── test_images/                  # Curated benchmark & test photographs (14 files)
 │   ├── Images/                       # Face image dataset for ViT training (.bmp)
 │   └── split_fixed_v2.csv            # Fixed reproducible Train/Val/Test cohort splits
 ├── reports/

@@ -186,7 +186,7 @@ Project Face/
 │   │   ├── BMX_C.xpt, BMX_J.XPT, BPQ_C.xpt, BPQ_J.XPT, BPX_J.XPT
 │   │   ├── DEMO_C.xpt, DEMO_J.XPT, DIQ_C.xpt, DIQ_J.XPT
 │   │   ├── DXXAG_C.xpt, DXXAG_J.XPT, DXX_J.XPT, GHB_J.XPT, GLU_J.XPT, PAQ_C.xpt
-│   ├── test_images/                  # ภาพถ่ายใบหน้าทดสอบที่คัดเลือกแล้ว (testpic01.png - testpic13.png)
+│   ├── test_images/                  # ภาพถ่ายใบหน้าทดสอบ Benchmark, Reference และ Demo (รวม 14 ไฟล์)
 │   ├── Images/                       # ชุดข้อมูลภาพใบหน้าสำหรับฝึก ViT (.bmp)
 │   └── split_fixed_v2.csv            # การแบ่ง Train/Val/Test cohort แบบคงที่และทำซ้ำได้
 ├── reports/
