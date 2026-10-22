@@ -32,10 +32,10 @@
 
 ภาพในหมวดหมู่นี้เป็นตัวอย่างที่ดึงมาจากชุดข้อมูลที่ใช้พัฒนาโมเดล Stage 1 (BMI Estimation) มีค่า Ground Truth BMI จากชุดข้อมูลต้นฉบับ เก็บแยกไว้เพื่อทำ **Pipeline Sanity Check** (ตรวจสอบว่าการโหลดโมเดลและการส่งค่าผ่านท่อประมวลผลทำงานได้ตรงตามต้นฉบับ) โดยแยกออกจากชุดทดสอบหมวดที่ 1 เพื่อป้องกันปัญหา Data Leakage
 
-| File Name | Source Dataset | Description | True BMI (kg/m²) | Purpose |
-| :--- | :--- | :--- | :---: | :--- |
-| `dataset_ref_male_01.jpg` | Stage 1 Training Set | ชายเอเชียหน้าตรง (ID Photo style) | *[ระบุค่าจาก Dataset]* | ตรวจสอบความถูกต้องของโมเดล Stage 1 เทียบกับต้นฉบับ |
-| `dataset_ref_male_02.png` | Stage 1 Training Set | ชายเอเชียสวมแว่นสายตา (In-the-wild style) | *[ระบุค่าจาก Dataset]* | ตรวจสอบผลกระทบของการสวมแว่นสายตาต่อการทำนาย BMI |
+| File Name | Source Dataset | True BMI (kg/m²) |
+| :--- | :--- | :---: |
+| `dataset_ref_male.png` | Stage 1 Training Set | **30.41** *(30.4065)* |
+| `dataset_ref_female.png` | Stage 1 Training Set | **38.27** *(38.2737)* |
 
 ---
 

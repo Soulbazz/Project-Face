@@ -37,8 +37,6 @@ weights/*.pkl
 # --- 3. Large Datasets & Raw Survey Files ---
 # Image Repositories
 data/Images/
-data/test_images/
-!data/test_images/
 
 # SAS Transport Files & Heavy Processed CSVs
 *.xpt
