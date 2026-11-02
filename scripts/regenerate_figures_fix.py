@@ -279,7 +279,7 @@ def generate_fig0_pipeline():
         cur_y = y_bot - arrow_gap
 
     out_path = os.path.join(RESULTS_DIR, "fig0_pipeline_architecture.png")
-    plt.savefig(out_path, dpi=300, facecolor="#ffffff", edgecolor="none", bbox_inches="tight", pad_inches=0.02)
+    plt.savefig(out_path, dpi=300, facecolor="#ffffff", edgecolor="none", bbox_inches="tight", pad_inches=0.10)
     plt.close()
     print(f"[+] Saved clean frameless pipeline diagram: {out_path}")
 
@@ -288,36 +288,34 @@ def generate_fig1_scatter():
     print("[*] Generating Figure 2: Stage 1.5 DEXA Scatter Plot (5.0 x 5.2 in)...")
     np.random.seed(42)
 
-    main_csv = os.path.join(DATA_DIR, "nhanes_cleaned_merged_final.csv")
-    if os.path.exists(main_csv):
-        df = pd.read_csv(main_csv)
-        if 'GENDER_NUM' not in df.columns and 'GENDER' in df.columns:
-            df['GENDER_NUM'] = df['GENDER'].map({'Male': 1, 'Female': 0})
-        clean = df.dropna(subset=['TOTAL_BODY_FAT_PCT', 'BMI', 'AGE', 'WAIST_CM']).copy()
-        y_actual = clean['TOTAL_BODY_FAT_PCT'].values
-        idx = np.random.choice(len(y_actual), size=531, replace=False)
-        y_actual_sub = y_actual[idx]
-    else:
-        y_actual_sub = np.random.normal(31.2, 8.5, 531)
-
-    y_actual_sub = np.clip(y_actual_sub, 10.0, 55.0)
-
-    # (a) Primary Non-Invasive (No Waist): Target MAE = 3.42%, RMSE = 4.25%, R2 = 0.74
-    noise_a = np.random.normal(0, 4.10, size=len(y_actual_sub))
-    y_pred_a = 0.77 * y_actual_sub + 0.23 * np.mean(y_actual_sub) + noise_a
-    y_pred_a = np.clip(y_pred_a, 10.0, 55.0)
-
-    # (b) Auxiliary Route (With Waist): Target MAE = 2.85%, RMSE = 3.62%, R2 = 0.82
-    noise_b = np.random.normal(0, 3.45, size=len(y_actual_sub))
-    y_pred_b = 0.84 * y_actual_sub + 0.16 * np.mean(y_actual_sub) + noise_b
-    y_pred_b = np.clip(y_pred_b, 10.0, 55.0)
+    # Real held-out predictions: saved Stage 1.5 XGBoost regressors evaluated on
+    # data/test_tabular.csv (SEQN-disjoint from train_tabular.csv), adults >= 20 y
+    # to match the Stage 2 adult cohort. No synthetic/random predictions.
+    import joblib
+    from sklearn.metrics import mean_absolute_error, root_mean_squared_error, r2_score
+    weights_dir = os.path.join(ROOT_DIR, "weights")
+    test_csv = os.path.join(ROOT_DIR, "data", "test_tabular.csv")
+    te = pd.read_csv(test_csv)
+    te = te[te['AGE'] >= 20].dropna(subset=['TOTAL_BODY_FAT_PCT', 'BMI', 'AGE', 'GENDER_NUM', 'WAIST_CM', 'LIFESTYLE_LEVEL']).copy()
+    m_no = joblib.load(os.path.join(weights_dir, "xgboost_bodyfat_no_waist.pkl"))
+    m_w = joblib.load(os.path.join(weights_dir, "xgboost_bodyfat_with_waist.pkl"))
+    y_actual_sub = te['TOTAL_BODY_FAT_PCT'].values
+    y_pred_a = m_no.predict(te[['BMI', 'AGE', 'GENDER_NUM', 'LIFESTYLE_LEVEL']])
+    y_pred_b = m_w.predict(te[['BMI', 'AGE', 'GENDER_NUM', 'WAIST_CM', 'LIFESTYLE_LEVEL']])
+    n_test = len(te)
+    mae_a, r2_a = mean_absolute_error(y_actual_sub, y_pred_a), r2_score(y_actual_sub, y_pred_a)
+    mae_b, r2_b = mean_absolute_error(y_actual_sub, y_pred_b), r2_score(y_actual_sub, y_pred_b)
+    rmse_a = root_mean_squared_error(y_actual_sub, y_pred_a)
+    rmse_b = root_mean_squared_error(y_actual_sub, y_pred_b)
+    print(f"[i] Stage 1.5 real test N={n_test}: no-waist MAE={mae_a:.2f} RMSE={rmse_a:.2f} R2={r2_a:.2f}; "
+          f"waist MAE={mae_b:.2f} RMSE={rmse_b:.2f} R2={r2_b:.2f}")
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(5.0, 5.2), dpi=300, gridspec_kw={'hspace': 0.45})
 
-    lo, hi = 8.0, 56.0
+    lo, hi = 5.0, 56.0
 
     # Panel (a): Primary Non-Invasive (No Waist)
-    ax1.scatter(y_actual_sub, y_pred_a, alpha=0.45, color='#1f77b4', edgecolors='none', s=26, label='Test Split (N = 531)')
+    ax1.scatter(y_actual_sub, y_pred_a, alpha=0.45, color='#1f77b4', edgecolors='none', s=26, label=f'Test Split (N = {n_test})')
     ax1.plot([lo, hi], [lo, hi], 'r--', lw=1.8, label='Ideal Line (y = x)')
     m_a, b_a = np.polyfit(y_actual_sub, y_pred_a, 1)
     ax1.plot([lo, hi], [m_a * lo + b_a, m_a * hi + b_a], color='#0f4c81', lw=2.0, label=f'Fit (Slope = {m_a:.2f})')
@@ -325,13 +323,13 @@ def generate_fig1_scatter():
     ax1.set_ylim(lo, hi)
     ax1.set_xlabel('Actual DEXA Total Body Fat (%)', fontweight='bold', fontsize=11)
     ax1.set_ylabel('Predicted Total Body Fat (%)', fontweight='bold', fontsize=11)
-    ax1.set_title('(a) Primary Non-Invasive (No Waist) | MAE = 3.42 pp, R² = 0.74', fontweight='bold', fontsize=11.5, pad=6)
+    ax1.set_title(f'(a) Primary Non-Invasive (No Waist) | MAE = {mae_a:.2f} pp, R² = {r2_a:.2f}', fontweight='bold', fontsize=10.0, pad=6)
     ax1.tick_params(axis='both', labelsize=10)
     ax1.grid(True, linestyle=':', alpha=0.6)
     ax1.legend(loc='upper left', frameon=True, framealpha=0.92, fontsize=9.2)
 
     # Panel (b): Auxiliary Route (With Waist)
-    ax2.scatter(y_actual_sub, y_pred_b, alpha=0.45, color='#2ca02c', edgecolors='none', s=26, label='Test Split (N = 531)')
+    ax2.scatter(y_actual_sub, y_pred_b, alpha=0.45, color='#2ca02c', edgecolors='none', s=26, label=f'Test Split (N = {n_test})')
     ax2.plot([lo, hi], [lo, hi], 'r--', lw=1.8, label='Ideal Line (y = x)')
     m_b, b_b = np.polyfit(y_actual_sub, y_pred_b, 1)
     ax2.plot([lo, hi], [m_b * lo + b_b, m_b * hi + b_b], color='#1b5e20', lw=2.0, label=f'Fit (Slope = {m_b:.2f})')
@@ -339,13 +337,13 @@ def generate_fig1_scatter():
     ax2.set_ylim(lo, hi)
     ax2.set_xlabel('Actual DEXA Total Body Fat (%)', fontweight='bold', fontsize=11)
     ax2.set_ylabel('Predicted Total Body Fat (%)', fontweight='bold', fontsize=11)
-    ax2.set_title('(b) Auxiliary Route (With Waist) | MAE = 2.85 pp, R² = 0.82', fontweight='bold', fontsize=11.5, pad=6)
+    ax2.set_title(f'(b) Auxiliary Route (With Waist) | MAE = {mae_b:.2f} pp, R² = {r2_b:.2f}', fontweight='bold', fontsize=10.0, pad=6)
     ax2.tick_params(axis='both', labelsize=10)
     ax2.grid(True, linestyle=':', alpha=0.6)
     ax2.legend(loc='upper left', frameon=True, framealpha=0.92, fontsize=9.2)
 
     out_path = os.path.join(RESULTS_DIR, "fig1_stage15_scatter.png")
-    plt.savefig(out_path, dpi=300, bbox_inches='tight', pad_inches=0.06)
+    plt.savefig(out_path, dpi=300, bbox_inches='tight', pad_inches=0.14)
     plt.close()
     print(f"[+] Saved: {out_path}")
 
@@ -380,7 +378,7 @@ def generate_fig2_roc():
     ax1.set_ylim([-0.02, 1.02])
     ax1.set_xlabel('False Positive Rate (1 - Specificity)', fontweight='bold', fontsize=11)
     ax1.set_ylabel('True Positive Rate (Sensitivity)', fontweight='bold', fontsize=11)
-    ax1.set_title('(a) Physician-Diagnosed Diabetes Mellitus (DIQ010)', fontweight='bold', fontsize=11.5, pad=6)
+    ax1.set_title('(a) Physician-Diagnosed Diabetes Mellitus (DIQ010)', fontweight='bold', fontsize=10.0, pad=6)
     ax1.tick_params(axis='both', labelsize=10)
     ax1.grid(True, linestyle=':', alpha=0.6)
     ax1.legend(loc='lower right', framealpha=0.92, fontsize=8.8)
@@ -400,13 +398,13 @@ def generate_fig2_roc():
     ax2.set_ylim([-0.02, 1.02])
     ax2.set_xlabel('False Positive Rate (1 - Specificity)', fontweight='bold', fontsize=11)
     ax2.set_ylabel('True Positive Rate (Sensitivity)', fontweight='bold', fontsize=11)
-    ax2.set_title('(b) Physician-Diagnosed Hypertension (BPQ020)', fontweight='bold', fontsize=11.5, pad=6)
+    ax2.set_title('(b) Physician-Diagnosed Hypertension (BPQ020)', fontweight='bold', fontsize=10.0, pad=6)
     ax2.tick_params(axis='both', labelsize=10)
     ax2.grid(True, linestyle=':', alpha=0.6)
     ax2.legend(loc='lower right', framealpha=0.92, fontsize=8.8)
 
     out_path = os.path.join(RESULTS_DIR, "fig2_roc_curves.png")
-    plt.savefig(out_path, dpi=300, bbox_inches='tight', pad_inches=0.06)
+    plt.savefig(out_path, dpi=300, bbox_inches='tight', pad_inches=0.14)
     plt.close()
     print(f"[+] Saved: {out_path}")
 
@@ -438,7 +436,7 @@ def generate_fig3_calibration():
     ax1.set_ylim([0.0, 1.0])
     ax1.set_xlabel('Mean Predicted Probability', fontweight='bold', fontsize=11)
     ax1.set_ylabel('Observed Fraction of Positives', fontweight='bold', fontsize=11)
-    ax1.set_title('(a) Diabetes Mellitus (DIQ010) Reliability Diagram', fontweight='bold', fontsize=11.5, pad=6)
+    ax1.set_title('(a) Diabetes Mellitus (DIQ010) Reliability Diagram', fontweight='bold', fontsize=10.0, pad=6)
     ax1.tick_params(axis='both', labelsize=10)
     ax1.grid(True, linestyle=':', alpha=0.6)
     ax1.legend(loc='upper left', framealpha=0.92, fontsize=9.0)
@@ -459,13 +457,13 @@ def generate_fig3_calibration():
     ax2.set_ylim([0.0, 1.0])
     ax2.set_xlabel('Mean Predicted Probability', fontweight='bold', fontsize=11)
     ax2.set_ylabel('Observed Fraction of Positives', fontweight='bold', fontsize=11)
-    ax2.set_title('(b) Hypertension (BPQ020) Reliability Diagram', fontweight='bold', fontsize=11.5, pad=6)
+    ax2.set_title('(b) Hypertension (BPQ020) Reliability Diagram', fontweight='bold', fontsize=10.0, pad=6)
     ax2.tick_params(axis='both', labelsize=10)
     ax2.grid(True, linestyle=':', alpha=0.6)
     ax2.legend(loc='upper left', framealpha=0.92, fontsize=9.0)
 
     out_path = os.path.join(RESULTS_DIR, "fig3_calibration.png")
-    plt.savefig(out_path, dpi=300, bbox_inches='tight', pad_inches=0.06)
+    plt.savefig(out_path, dpi=300, bbox_inches='tight', pad_inches=0.14)
     plt.close()
     print(f"[+] Saved: {out_path}")
 
@@ -531,7 +529,7 @@ def generate_fig4_confusion_matrices():
         ax.set_ylabel('True Clinical Target (DIQ010)', fontweight='bold', fontsize=10.5)
 
     out_path = os.path.join(RESULTS_DIR, "fig4_confusion_matrix.png")
-    plt.savefig(out_path, dpi=300, bbox_inches='tight', pad_inches=0.06)
+    plt.savefig(out_path, dpi=300, bbox_inches='tight', pad_inches=0.14)
     plt.close()
     print(f"[+] Saved: {out_path}")
 

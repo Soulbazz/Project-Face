@@ -4,33 +4,33 @@
 
 ---
 
-## 🎯 1. Out-of-Sample Verified Benchmark Set (ชุดทดสอบจริงจังนอกชุดฝึกสอน — 10 ภาพ)
+## 🎯 1. Out-of-Sample Verified Benchmark Set (ชุดทดสอบจริงจังนอกชุดฝึกสอน – 10 ภาพ)
 
 ชุดภาพบุคคลที่มีข้อมูลสถิติทางกายภาพอ้างอิงตามช่วงเวลาที่ถ่ายภาพ (ส่วนสูง, น้ำหนัก, ค่า BMI จริง, และเปอร์เซ็นต์ไขมันร่างกายประเมินตามสรีระ/ผลตรวจร่างกายทางการแพทย์) และ **ไม่เคยอยู่ในชุดข้อมูลเทรนของโมเดล** ใช้สำหรับประเมินความแม่นยำของ Stage 1 (ViT BMI), Stage 1.5 (DEXA Body Fat), และ Stage 2 (Disease Risk Triage)
 
 | File Name | Subject / Identity | Year | Age | Sex | PA Level | Height / Weight | True BMI (kg/m²) | Est. / True Body Fat (%) | Expected Triage |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | `bench_adriana_lima.png` | Adriana Lima (Model/Boxing) | ~2012 | 30 | Female (0) | Vigorous (2) | 178 cm / 58.0 kg | **18.3** | ~15.0% | 🟢 Low Risk |
-| `bench_cristiano_ronaldo_01.png` | Cristiano Ronaldo (Photo 1) | 2018 | 33 | Male (1) | Vigorous (2) | 187 cm / 84.0 kg | **24.0** | **7.0%** *(Juventus Medical)* | 🟢 Low Risk |
-| `bench_cristiano_ronaldo_02.png` | Cristiano Ronaldo (Photo 2) | 2018 | 33 | Male (1) | Vigorous (2) | 187 cm / 84.0 kg | **24.0** | **7.0%** *(Juventus Medical)* | 🟢 Low Risk |
+| `bench_cristiano_ronaldo_01.png` | Cristiano Ronaldo (Man Utd Return) | 2021 | 36 | Male (1) | Vigorous (2) | 187 cm / 84.5 kg | **24.2** | ~7.5% | 🟢 Low Risk |
+| `bench_cristiano_ronaldo_02.png` | Cristiano Ronaldo (Real Madrid / Final Phase) | 2017 | 32 | Male (1) | Vigorous (2) | 187 cm / 83.5 kg | **23.9** | **7.0%** *(Peak Athletic)* | 🟢 Low Risk |
 | `bench_leonardo_dicaprio.png` | Leonardo DiCaprio (Oscars) | 2016 | 41 | Male (1) | Moderate (1) | 183 cm / 88.0 kg | **26.3** *(Overweight)* | ~23.0% | 🟡 Watchful / 🟠 Screen Pos. |
 | `bench_lionel_messi.png` | Lionel Messi (Athletic) | 2022 | 35 | Male (1) | Vigorous (2) | 170 cm / 72.0 kg | **24.9** | ~9.5% | 🟢 Low / 🟡 Watchful |
 | `bench_ronda_rousey.png` | Ronda Rousey (UFC 190) | 2015 | 28 | Female (0) | Vigorous (2) | 170 cm / 61.2 kg | **21.2** | ~13.0% | 🟢 Low Risk |
 | `bench_selena_gomez.png` | Selena Gomez (Golden Globes) | 2023 | 30 | Female (0) | Moderate (1) | 165 cm / 59.5 kg | **21.9** | ~25.0% | 🟢 Low Risk |
-| `bench_tom_holland_01.png` | Tom Holland (Smiling / Tilted) | 2017 | 21 | Male (1) | Vigorous (2) | 173 cm / 64.0 kg | **21.4** | ~11.5% | 🟢 Low Risk |
-| `bench_tom_holland_02.png` | Tom Holland (Frontal Neutral) | 2017 | 21 | Male (1) | Vigorous (2) | 173 cm / 64.0 kg | **21.4** | ~11.5% | 🟢 Low Risk |
+| `bench_tom_holland_01.png` | Tom Holland (Curly Hair / Press Tour) | 2021 | 25 | Male (1) | Vigorous (2) | 173 cm / 66.0 kg | **22.0** | ~12.0% | 🟢 Low Risk |
+| `bench_tom_holland_02.png` | Tom Holland (Short Hair / Homecoming) | 2017 | 21 | Male (1) | Vigorous (2) | 173 cm / 64.0 kg | **21.4** | ~11.5% | 🟢 Low Risk |
 | `bench_zac_efron.jpg` | Zac Efron (Baywatch Lean) | 2016 | 28 | Male (1) | Vigorous (2) | 173 cm / 68.0 kg | **22.7** | **~5.5%** | 🟢 Low Risk |
 
 *หมายเหตุการตั้งค่าพารามิเตอร์ตอนทดสอบ:*
-- **Sex (เพศชีววิทยา):** `1` = ชาย (Male), `0` = หญิง (Female)
-- **PA Level (ระดับกิจกรรมทางกาย):** `0` = Sedentary (นั่งทำงานเป็นหลัก), `1` = Moderate (ขยับร่างกาย/ออกกำลังกายปานกลาง), `2` = Vigorous/Active (ออกกำลังกายหนักสม่ำเสมอ)
-- **การทดสอบความเสถียร (Consistency Check):** ภาพของ `Cristiano Ronaldo` (01 vs 02) และ `Tom Holland` (01 vs 02) มีไว้เพื่อทดสอบว่าเมื่อเปลี่ยนภาพถ่ายหรือสีหน้าเล็กน้อยของบุคคลเดียวกัน โมเดลยังคงให้ค่า BMI และความเสี่ยงที่ใกล้เคียงเดิมหรือไม่
+- **Sex (เพศชีววิทยา):** `1` = ชาย (Male), `0` = หญิง (Female)[cite: 46]
+- **PA Level (ระดับกิจกรรมทางกาย):** `0` = Sedentary (นั่งทำงานเป็นหลัก), `1` = Moderate (ขยับร่างกาย/ออกกำลังกายปานกลาง), `2` = Vigorous/Active (ออกกำลังกายหนักสม่ำเสมอ)[cite: 46]
+- **การทดสอบความเสถียรข้ามช่วงวัย (Longitudinal & Temporal Consistency Check):** ภาพของ `Cristiano Ronaldo` (01 vs 02 ช่วงอายุ 36 vs 32 ปี) และ `Tom Holland` (01 vs 02 ช่วงอายุ 25 vs 21 ปี) มีไว้เพื่อทดสอบการตอบสนองของโมเดลเมื่อลักษณะทรงผม ทรงหน้า และช่วงอายุของบุคคลเดียวกันเปลี่ยนผ่านตามกาลเวลา
 
 ---
 
-## 🧪 2. In-Distribution Dataset Sanity-Check Set (ภาพอ้างอิงจากชุดข้อมูลเทรน Stage 1 — 2 ภาพ)
+## 🧪 2. In-Distribution Dataset Sanity-Check Set (ภาพอ้างอิงจากชุดข้อมูลเทรน Stage 1 – 2 ภาพ)
 
-ภาพในหมวดหมู่นี้เป็นตัวอย่างที่ดึงมาจากชุดข้อมูลที่ใช้พัฒนาโมเดล Stage 1 (BMI Estimation) มีค่า Ground Truth BMI จากชุดข้อมูลต้นฉบับ เก็บแยกไว้เพื่อทำ **Pipeline Sanity Check** (ตรวจสอบว่าการโหลดโมเดลและการส่งค่าผ่านท่อประมวลผลทำงานได้ตรงตามต้นฉบับ) โดยแยกออกจากชุดทดสอบหมวดที่ 1 เพื่อป้องกันปัญหา Data Leakage
+ภาพในหมวดหมู่นี้เป็นตัวอย่างที่ดึงมาจากชุดข้อมูลที่ใช้พัฒนาโมเดล Stage 1 (BMI Estimation) มีค่า Ground Truth BMI จากชุดข้อมูลต้นฉบับ เก็บแยกไว้เพื่อทำ **Pipeline Sanity Check** (ตรวจสอบว่าการโหลดโมเดลและการส่งค่าผ่านท่อประมวลผลทำงานได้ตรงตามต้นฉบับ) โดยแยกออกจากชุดทดสอบหมวดที่ 1 เพื่อป้องกันปัญหา Data Leakage[cite: 46]
 
 | File Name | Source Dataset | True BMI (kg/m²) |
 | :--- | :--- | :---: |
@@ -39,9 +39,9 @@
 
 ---
 
-## 🎮 3. Wild Playground & Live Demo Set (ชุดภาพสำหรับทดลองเล่นและสาธิต UI — 2 ภาพ)
+## 🎮 3. Wild Playground & Live Demo Set (ชุดภาพสำหรับทดลองเล่นและสาธิต UI – 2 ภาพ)
 
-ภาพในหมวดหมู่นี้เป็นภาพบุคคลสาธารณะของไทยที่ **ไม่มีข้อมูล Ground Truth ทางการแพทย์ (ไม่ทราบค่า BMI หรือผลสแกน DEXA ที่แท้จริง)** จัดเตรียมไว้สำหรับกดสาธิตการทำงานบนหน้าเว็บแอปพลิเคชัน (Live UI Demo) เพื่อเปรียบเทียบผลลัพธ์ตามลักษณะโครงหน้าและระดับกิจกรรมทางกาย
+ภาพในหมวดหมู่นี้เป็นภาพบุคคลสาธารณะของไทยที่ **ไม่มีข้อมูล Ground Truth ทางการแพทย์ (ไม่ทราบค่า BMI หรือผลสแกน DEXA ที่แท้จริง)** จัดเตรียมไว้สำหรับกดสาธิตการทำงานบนหน้าเว็บแอปพลิเคชัน (Live UI Demo) เพื่อเปรียบเทียบผลลัพธ์ตามลักษณะโครงหน้าและระดับกิจกรรมทางกาย[cite: 46]
 
 | File Name | Subject / Identity | Recommended Demo Inputs | Expected Demo Behavior |
 | :--- | :--- | :--- | :--- |
