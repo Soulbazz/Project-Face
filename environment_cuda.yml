@@ -1,0 +1,31 @@
+name: face2bmi
+channels:
+  - pytorch
+  - nvidia
+  - defaults
+dependencies:
+  - python=3.10.11
+  - pytorch>=2.0.1
+  - torchvision>=0.15.2
+  - pytorch-cuda=11.8
+  - pip
+  - pip:
+      # --- Core Data & ML Libraries ---
+      - numpy==1.26.4
+      - pandas==1.5.3
+      - scipy==1.15.3
+      - scikit-learn==1.7.2
+      - xgboost==3.2.0
+      - matplotlib>=3.7.0
+      # --- Vision & Face Guard ---
+      - opencv-contrib-python==4.10.0.84
+      - pillow==9.4.0
+      - mediapipe==0.10.14
+      - protobuf>=4.25.3,<5
+      # --- App, Visualization & Export ---
+      - streamlit>=1.32.0,<1.35.0
+      - plotly==7.0.0
+      - fpdf2==2.8.8
+      - joblib==1.5.3
+      - pyreadstat>=1.2.0
+      - pyarrow==14.0.2

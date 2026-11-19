@@ -253,7 +253,12 @@ cd "Project Face"
 
 ### 2. สร้าง Conda Environment (แนะนำ)
 ```bash
+# แบบ Universal (ใช้ได้ทุกเครื่อง: CPU / การ์ดจอ AMD / macOS):
 conda env create -f environment.yml
+
+# หรือสำหรับเครื่องที่มีการ์ดจอ NVIDIA (CUDA 11.8):
+conda env create -f environment_cuda.yml
+
 conda activate face2bmi
 ```
 

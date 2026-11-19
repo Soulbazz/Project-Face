@@ -282,7 +282,12 @@ cd "Project Face"
 
 ### 2. Create the Conda Environment (Recommended)
 ```bash
+# Universal (CPU / AMD GPU / macOS):
 conda env create -f environment.yml
+
+# Or for NVIDIA GPU (CUDA 11.8):
+conda env create -f environment_cuda.yml
+
 conda activate face2bmi
 ```
 
