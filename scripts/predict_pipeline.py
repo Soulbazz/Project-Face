@@ -220,7 +220,7 @@ def load_all_models(device: Optional[str] = None, verbose: bool = False) -> dict
             f"ไม่พบไฟล์โมเดลใน {WEIGHTS_DIR}: {', '.join(missing)}"
         )
 
-    vit_model = get_model().float().to(device)
+    vit_model = get_model(pretrained=False).float().to(device)
     vit_model.load_state_dict(
         torch.load(WEIGHTS_DIR / WEIGHT_FILES["vit"], map_location=device)
     )
@@ -280,24 +280,52 @@ def _summarize(arr: np.ndarray, ci: float = 0.95) -> dict:
     }
 
 
+def _extract_vit_features(
+    img_tensor: torch.Tensor,
+    vit_model: nn.Module,
+) -> torch.Tensor:
+    """
+    รัน ViT-H/14 backbone เพียง 1 ครั้งเพื่อสกัด CLS feature vector (1, 1280)
+    เนื่องจากตัว backbone ของ ViT-H/14 มี dropout=0.0 จึงไม่ต้องรันซ้ำในทุกรอบ MC Dropout
+    """
+    use_cuda_amp = img_tensor.device.type == "cuda"
+    with torch.no_grad():
+        if use_cuda_amp:
+            with torch.amp.autocast("cuda"):
+                x = vit_model._process_input(img_tensor)
+                n = x.shape[0]
+                batch_class_token = vit_model.class_token.expand(n, -1, -1)
+                x = torch.cat([batch_class_token, x], dim=1)
+                x = vit_model.encoder(x)
+                feat = x[:, 0]
+            return feat.float()
+        else:
+            x = vit_model._process_input(img_tensor)
+            n = x.shape[0]
+            batch_class_token = vit_model.class_token.expand(n, -1, -1)
+            x = torch.cat([batch_class_token, x], dim=1)
+            x = vit_model.encoder(x)
+            return x[:, 0]
+
+
 def mc_dropout_bmi(
     img_tensor: torch.Tensor,
     vit_model: nn.Module,
     n_samples: int = 30,
+    cached_feat: Optional[torch.Tensor] = None,
 ) -> np.ndarray:
     """
-    รัน forward pass ซ้ำ n_samples ครั้งโดยเปิด dropout ค้างไว้ (MC Dropout)
-    คืนค่าเป็น array ของ BMI ที่ทำนายได้ในแต่ละรอบ (ยังไม่ aggregate)
-
-    หมายเหตุ: ต้องเรียกด้วย img_tensor เดิม (deterministic input) ความแตกต่าง
-    ระหว่างรอบมาจาก dropout mask ที่สุ่มใหม่ทุกครั้งเท่านั้น
+    รัน MC Dropout แบบเร็ว (Cached Backbone + Batched Head):
+    สกัด feature จาก ViT backbone เพียง 1 ครั้ง แล้วส่งผ่าน BMIHead (ที่มี Dropout(0.5))
+    พร้อมกัน n_samples รอบเป็น batch เดียว ลดเวลาประมวลผลลง ~25 เท่าโดยได้ distribution เดิม
     """
+    feat = cached_feat if cached_feat is not None else _extract_vit_features(img_tensor, vit_model)
     enable_mc_dropout(vit_model)
-    samples = np.empty(n_samples, dtype=np.float64)
     try:
         with torch.no_grad():
-            for i in range(n_samples):
-                samples[i] = float(vit_model(img_tensor).item())
+            feat_batch = feat.expand(n_samples, -1)
+            preds = vit_model.heads(feat_batch).squeeze(-1)
+            samples = preds.detach().cpu().numpy().astype(np.float64)
     finally:
         vit_model.eval()  # คืนโมเดลให้อยู่ใน eval mode ปกติเสมอ แม้เกิด error
     return samples
@@ -620,17 +648,9 @@ def predict_health_risk(
     # ---------- STAGE 1: Face → BMI (ViT), 25-Pass MC Dropout Point Estimate ----------
     vit_model = models["vit"]
     img_tensor = vit_transforms(ToTensor()(img)).unsqueeze(0).to(device)
-    
-    enable_mc_dropout(vit_model)
-    mc_preds = []
-    try:
-        with torch.no_grad():
-            for _ in range(25):
-                val = vit_model(img_tensor).item()
-                mc_preds.append(val)
-    finally:
-        vit_model.eval()
-            
+    vit_feat = _extract_vit_features(img_tensor, vit_model)
+    mc_preds = mc_dropout_bmi(img_tensor, vit_model, n_samples=25, cached_feat=vit_feat)
+
     pred_bmi = float(np.mean(mc_preds))
     std_bmi = float(np.std(mc_preds))
     ci_lower = float(np.percentile(mc_preds, 2.5))
@@ -726,7 +746,9 @@ def predict_health_risk(
 
     # ---------- [NEW] STAGE 3: Monte Carlo Dropout uncertainty (opt-in) ----------
     if mc_dropout:
-        bmi_samples = mc_dropout_bmi(img_tensor, vit_model, n_samples=mc_samples)
+        bmi_samples = mc_dropout_bmi(
+            img_tensor, vit_model, n_samples=mc_samples, cached_feat=vit_feat
+        )
 
         n = len(bmi_samples)
 

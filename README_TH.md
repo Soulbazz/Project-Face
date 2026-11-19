@@ -5,7 +5,7 @@
 [![XGBoost](https://img.shields.io/badge/XGBoost-Monotonic%20Calibrated-brightgreen.svg)](https://xgboost.readthedocs.io/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.34+-FF4B4B.svg)](https://streamlit.io/)
 [![CDC NHANES](https://img.shields.io/badge/Dataset-CDC%20NHANES%20Benchmark-informational.svg)](https://www.cdc.gov/nchs/nhanes/index.htm)
-[![IEEE Conference Format](https://img.shields.io/badge/Publication-IEEE%20Format-00629B.svg)](reports/Face2Health_IEEE_Conference_Paper.pdf)
+[![Research Paper](https://img.shields.io/badge/Publication-Research%20Paper-00629B.svg)](reports/paper_thai.pdf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Face2Health** คือระบบ Pipeline การคัดกรองทางคลินิกแบบครบวงจร ไม่รุกล้ำ และหลายโมดัล พร้อมทั้งเป็นตู้คีออสก์สนับสนุนการตัดสินใจสำหรับงานคัดแยกผู้ป่วย (Triage) ในระดับปฐมภูมิ ระบบผสานการทำงานของ **Vision Transformers (ViT-H/14 with Monte Carlo Dropout)**, **Scale-Invariant Facial Morphometrics**, และ **Tabular Monotonic Extreme Gradient Boosting (XGBoost)** โดยสอบเทียบกับฐานข้อมูลผู้ใหญ่หลายเชื้อชาติมาตรฐานทอง **CDC NHANES** ($N = 3{,}540$)
@@ -30,8 +30,7 @@
    - [Entry Point 1: CDSS Kiosk Simulation Dashboard](#entry-point-1-cdss-kiosk-simulation-dashboard-run_dashboardbat)
    - [Entry Point 2: Production Health Screening App](#entry-point-2-production-health-screening-app-run_appbat)
    - [Entry Point 3: CLI Prediction Pipeline & Sanity Check](#entry-point-3-cli-pipeline-inference--sanity-checks)
-   - [Entry Point 4: IEEE Academic Paper Compilation](#entry-point-4-ieee-academic-paper-compilation)
-   - [Entry Point 5: Full Pipeline Retraining & ETL](#entry-point-5-data-etl--model-retraining-pipeline)
+   - [Entry Point 4: Full Pipeline Retraining & ETL](#entry-point-4-data-etl--model-retraining-pipeline)
 8. [ผลการประเมิน Benchmark บน Held-Out Test Set](#-ผลการประเมิน-benchmark-บน-held-out-test-set)
 9. [ข้อจำกัดความรับผิดชอบทางการแพทย์และกฎระเบียบ](#-ข้อจำกัดความรับผิดชอบทางการแพทย์และกฎระเบียบ)
 10. [กิตติกรรมประกาศและการอ้างอิง](#-กิตติกรรมประกาศและการอ้างอิง)
@@ -79,7 +78,7 @@
 | **Stage 2 (Classifiers)** | Calibrated T2DM Risk ($P$) | % ความน่าจะเป็น (0–100%) | Posterior probability ที่สอบเทียบด้วย Platt สำหรับโรคเบาหวานชนิดที่ 2 |
 | **Stage 2 (Classifiers)** | Calibrated HTN Risk ($P$) | % ความน่าจะเป็น (0–100%) | Posterior probability ที่สอบเทียบด้วย Platt สำหรับความดันโลหิตสูงชนิดปฐมภูมิ |
 | **Stage 3 (Triage)** | ระดับการคัดแยกทางคลินิก | 4 ระดับ | **ความเสี่ยงต่ำ** (🟢), **ต้องจับตา** (🟡), **Screen Positive** (🟠), **ความเสี่ยงเร่งด่วน** (🔴) |
-| **Export Engines** | PDF / IEEE Paper | `.pdf` / `.docx` | รายงานสรุปผู้ป่วยพร้อมคำแนะนำยืนยันผลทางคลินิก หรือบทความวิชาการ IEEE |
+| **Export Engine** | รายงาน PDF สองภาษา | `.pdf` | รายงานสรุปผู้ป่วย (ไทย/อังกฤษ) พร้อมคำแนะนำยืนยันผลทางคลินิก |
 
 ---
 
@@ -190,10 +189,17 @@ Project Face/
 │   ├── Images/                       # ชุดข้อมูลภาพใบหน้าสำหรับฝึก ViT (.bmp)
 │   └── split_fixed_v2.csv            # การแบ่ง Train/Val/Test cohort แบบคงที่และทำซ้ำได้
 ├── reports/
-│   ├── Face2Health_IEEE_Conference_Paper.pdf  # บทความวิจัย IEEE 4 หน้าที่คอมไพล์แล้ว
-│   └── [ENG]-67076012-Short Paper.pdf        # บทความวิชาการสั้นฉบับก่อนหน้า
+│   ├── Paper.pdf                     # บทความวิจัยฉบับสมบูรณ์ (ภาษาอังกฤษ)
+│   └── paper_thai.pdf                # บทความวิจัยฉบับสมบูรณ์ (ภาษาไทย)
 ├── scripts/
-│   ├── results/                      # กราฟ calibration, ROC curves, และ confusion matrix ของ Stage 2
+│   ├── results/                      # กราฟสถาปัตยกรรม, calibration, ROC curves, และ confusion matrix
+│   │   ├── fig0_pipeline_architecture.png
+│   │   ├── fig1_stage15_scatter.png
+│   │   ├── fig2_roc_curves.png
+│   │   ├── fig3_calibration.png
+│   │   ├── fig4_confusion_matrix.png
+│   │   ├── stage1_calibration.png
+│   │   ├── stage15_waist_scatter.png
 │   │   ├── stage2_benchmark_calibration.png
 │   │   ├── stage2_benchmark_cm.png
 │   │   ├── stage2_benchmark_comparison.csv
@@ -204,17 +210,15 @@ Project Face/
 │   ├── build_dataset.py              # ETL builder ข้อมูล NHANES หลายรอบสำรวจ (.parquet)
 │   ├── convert_xpt_to_csv.py         # Utility แปลงไฟล์ SAS .xpt เป็น .csv
 │   ├── eval_vit.py                   # สคริปต์ประเมิน Stage 1 บน test split
-│   ├── evaluateAll.py                # ชุดประเมิน benchmark หลายโมเดลอย่างครอบคลุม
+│   ├── evaluateAll.py                # สคริปต์ประเมิน benchmark เทียบ checkpoint ของ ViT
 │   ├── face_guard.py                 # Two-Tier Face Guard (MediaPipe/OpenCV, area ratio, blur, illumination)
 │   ├── facial_concepts.py            # ตัวสกัด facial morphometric แบบ scale-invariant (LFWR, CJWR, PAR, FWHR)
-│   ├── generate_academic_paper_docx.py # คอมไพเลอร์ PDF บทความวิจัย IEEE อัตโนมัติ ผ่าน PyMuPDF
 │   ├── loader.py                     # Image augmentation, ViT transforms, และ PyTorch DataLoaders
 │   ├── models.py                     # สถาปัตยกรรมโมเดล PyTorch ViT-H/14 พร้อม BMIHead & MC Dropout
 │   ├── pdf_export.py                 # ตัวสร้าง PDF ทางการแพทย์แบบสองภาษา (ไทย/อังกฤษ)
-│   ├── predict_pipeline.py           # เครื่องยนต์ production inference pipeline พร้อม MC Dropout
+│   ├── predict_pipeline.py           # เครื่องยนต์ production inference pipeline (Cached Backbone + Batched MC Dropout)
 │   ├── prepare_dataset.py            # Pipeline ทำความสะอาดและรวมข้อมูล NHANES
-│   ├── stage2_train.py               # Trainer XGBoost Platt-calibrated พื้นฐานสำหรับ Stage 2
-│   ├── stage2_train_optimized.py     # Trainer Monotonic XGBoost สำหรับ Production พร้อมปรับ F2 threshold
+│   ├── stage2_train_optimized.py     # Trainer Monotonic XGBoost สำหรับ Production พร้อม Platt scaling และปรับ F2 threshold
 │   ├── train_vit_bmi.py              # Training loop PyTorch สำหรับโมเดล Stage 1 ViT-H/14 BMI
 │   └── train_xgboost.py              # Training script สำหรับ DEXA body fat regressors ของ Stage 1.5
 ├── weights/
@@ -226,14 +230,13 @@ Project Face/
 │   ├── xgb_classifier_hypertension.pkl  # Stage 2 Monotonic Calibrated XGBoost (HTN, เมื่อมีขนาดเอว)
 │   ├── xgb_classifier_hypertension_no_waist.pkl # Stage 2 Monotonic Calibrated XGBoost (HTN, ไม่มีขนาดเอว)
 │   └── thresholds.json               # Metadata จุดตัดทางคลินิกและเมตริก test ที่บันทึกไว้
-├── archive/                          # การทดลองก่อน production และโมเดลที่เหลืออยู่
 ├── environment.yml                   # ข้อกำหนด Conda environment ครบถ้วน (`face2bmi`)
 ├── requirements.txt                  # Python pip dependencies
 ├── run_app.bat                       # ตัวเรียกใช้ Production App แบบ One-click สำหรับ Windows
 ├── run_dashboard.bat                 # ตัวเรียกใช้ CDSS Kiosk Dashboard แบบ One-click สำหรับ Windows
-├── final_intro.mp4                   # วิดีโอสาธิตระบบ
 ├── LICENSE                           # สัญญาอนุญาต MIT
-└── README.md                         # เอกสารหลักของ Repository
+├── README.md                         # เอกสารหลักของ Repository (ภาษาอังกฤษ)
+└── README_TH.md                      # เอกสารหลักของ Repository (ภาษาไทย)
 ```
 
 ---
@@ -308,14 +311,7 @@ streamlit run scripts/app.py
 python scripts/predict_pipeline.py
 ```
 
-### Entry Point 4: IEEE Academic Paper Compilation
-คอมไพล์บทความวิจัย IEEE 4 หน้าที่พร้อมเผยแพร่ไปยัง `reports/Face2Health_IEEE_Conference_Paper.pdf` โดยตรงผ่าน PyMuPDF:
-
-```bash
-python scripts/generate_academic_paper_docx.py
-```
-
-### Entry Point 5: Data ETL & Model Retraining Pipeline
+### Entry Point 4: Data ETL & Model Retraining Pipeline
 เพื่อสร้างน้ำหนักโมเดลทั้งหมดใหม่จากข้อมูล CDC NHANES ดิบ:
 
 ```bash

@@ -30,8 +30,12 @@ class BMIHead(nn.Module):
 
 
 
-def get_model():
-    model = vit_h_14(weights='IMAGENET1K_SWAG_E2E_V1')
+def get_model(pretrained: bool = True):
+    if pretrained:
+        model = vit_h_14(weights='IMAGENET1K_SWAG_E2E_V1')
+    else:
+        # Match SWAG E2E V1 input resolution (518x518) without loading the 2.5 GB base weights twice
+        model = vit_h_14(weights=None, image_size=518)
     for param in model.parameters():
         param.requires_grad = False
 

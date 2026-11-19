@@ -5,7 +5,7 @@
 [![XGBoost](https://img.shields.io/badge/XGBoost-Monotonic%20Calibrated-brightgreen.svg)](https://xgboost.readthedocs.io/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.34+-FF4B4B.svg)](https://streamlit.io/)
 [![CDC NHANES](https://img.shields.io/badge/Dataset-CDC%20NHANES%20Benchmark-informational.svg)](https://www.cdc.gov/nchs/nhanes/index.htm)
-[![IEEE Conference Format](https://img.shields.io/badge/Publication-IEEE%20Format-00629B.svg)](reports/Face2Health_IEEE_Conference_Paper.pdf)
+[![Research Paper](https://img.shields.io/badge/Publication-Research%20Paper-00629B.svg)](reports/Paper.pdf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Face2Health** is an end-to-end, non-invasive, multi-modal clinical screening pipeline and decision support kiosk system for primary healthcare triage. It couples **Vision Transformers (ViT-H/14 with Monte Carlo Dropout)**, **Scale-Invariant Facial Morphometrics**, and **Tabular Monotonic Extreme Gradient Boosting (XGBoost)** calibrated against the gold-standard **CDC NHANES** multi-ethnic adult cohort ($N = 3,540$).
@@ -30,8 +30,7 @@ The platform addresses the silent progression of major Non-Communicable Diseases
    - [Entry Point 1: CDSS Kiosk Simulation Dashboard](#entry-point-1-cdss-kiosk-simulation-dashboard-run_dashboardbat)
    - [Entry Point 2: Production Health Screening Application](#entry-point-2-production-health-screening-app-run_appbat)
    - [Entry Point 3: CLI Prediction Pipeline & Sanity Check](#entry-point-3-cli-pipeline-inference--sanity-checks)
-   - [Entry Point 4: IEEE Academic Paper Compilation](#entry-point-4-ieee-academic-paper-compilation)
-   - [Entry Point 5: Full Pipeline Retraining & ETL](#entry-point-5-data-etl--model-retraining-pipeline)
+   - [Entry Point 4: Full Pipeline Retraining & ETL](#entry-point-4-data-etl--model-retraining-pipeline)
 8. [Held-Out Benchmark Evaluation](#-held-out-benchmark-evaluation)
 9. [Medical & Regulatory Disclaimer](#-medical--regulatory-disclaimer)
 10. [Acknowledgements & Citation](#-acknowledgements--citation)
@@ -79,7 +78,7 @@ The platform addresses the silent progression of major Non-Communicable Diseases
 | **Stage 2 (Classifiers)** | Calibrated T2DM Risk ($P$) | % Probability (0–100%) | Platt-calibrated posterior probability of Type 2 Diabetes Mellitus. |
 | **Stage 2 (Classifiers)** | Calibrated HTN Risk ($P$) | % Probability (0–100%) | Platt-calibrated posterior probability of Essential Hypertension. |
 | **Stage 3 (Triage)** | Clinical Triage Stratum | 4 Tiers | **Low Risk** (🟢), **Watchful** (🟡), **Screen Positive** (🟠), **Urgent Risk** (🔴). |
-| **Export Engines** | PDF / IEEE Paper | `.pdf` / `.docx` | Patient summary report with clinical confirmatory recommendations or IEEE conference publication. |
+| **Export Engine** | Bilingual Clinical PDF | `.pdf` | Patient summary report (Thai/English) with clinical confirmatory recommendations. |
 
 ---
 
@@ -219,10 +218,17 @@ Project Face/
 │   ├── Images/                       # Face image dataset for ViT training (.bmp)
 │   └── split_fixed_v2.csv            # Fixed reproducible Train/Val/Test cohort splits
 ├── reports/
-│   ├── Face2Health_IEEE_Conference_Paper.pdf  # Compiled 4-page IEEE publication research paper
-│   └── [ENG]-67076012-Short Paper.pdf        # Prior academic short paper
+│   ├── Paper.pdf                     # Final academic research paper (English)
+│   └── paper_thai.pdf                # Final academic research paper (Thai)
 ├── scripts/
-│   ├── results/                      # Stage 2 calibration plots, ROC curves, and confusion matrices
+│   ├── results/                      # Pipeline figures, Stage 1/1.5/2 calibration, ROC curves, and confusion matrices
+│   │   ├── fig0_pipeline_architecture.png
+│   │   ├── fig1_stage15_scatter.png
+│   │   ├── fig2_roc_curves.png
+│   │   ├── fig3_calibration.png
+│   │   ├── fig4_confusion_matrix.png
+│   │   ├── stage1_calibration.png
+│   │   ├── stage15_waist_scatter.png
 │   │   ├── stage2_benchmark_calibration.png
 │   │   ├── stage2_benchmark_cm.png
 │   │   ├── stage2_benchmark_comparison.csv
@@ -230,20 +236,18 @@ Project Face/
 │   │   ├── stage2_benchmark_roc.png
 │   │   └── xgboost_train_summary.csv
 │   ├── app.py                        # Full production Streamlit UI (ViT-H/14, Face Guard, PDF Export)
-│   ├── build_dataset.py              # Modern multi-cycle NHANES ETL builder (.parquet)
+│   ├── build_dataset.py              # Multi-cycle NHANES ETL builder (.parquet)
 │   ├── convert_xpt_to_csv.py         # Utility converting SAS .xpt files to .csv
 │   ├── eval_vit.py                   # Stage 1 evaluation script on test split
-│   ├── evaluateAll.py                # Comprehensive multi-model benchmark evaluation suite
+│   ├── evaluateAll.py                # Multi-checkpoint ViT benchmark evaluation script
 │   ├── face_guard.py                 # Two-Tier Face Guard (MediaPipe/OpenCV, area ratio, blur, illumination)
 │   ├── facial_concepts.py            # Scale-invariant facial morphometric extractor (LFWR, CJWR, PAR, FWHR)
-│   ├── generate_academic_paper_docx.py # Automated IEEE research paper PDF compiler via PyMuPDF
 │   ├── loader.py                     # Image augmentations, ViT transforms, and PyTorch DataLoaders
 │   ├── models.py                     # PyTorch ViT-H/14 model architecture with BMIHead & MC Dropout
 │   ├── pdf_export.py                 # Bilingual (Thai/English) medical PDF generator
-│   ├── predict_pipeline.py           # Production inference pipeline engine with MC Dropout
+│   ├── predict_pipeline.py           # Production inference pipeline engine (Cached Backbone + Batched MC Dropout)
 │   ├── prepare_dataset.py            # NHANES data cleaning and merging pipeline
-│   ├── stage2_train.py               # Basic Stage 2 Platt-calibrated XGBoost trainer
-│   ├── stage2_train_optimized.py     # Production Monotonic XGBoost trainer with F2 threshold tuning
+│   ├── stage2_train_optimized.py     # Production Monotonic XGBoost trainer with Platt scaling & F2 threshold tuning
 │   ├── train_vit_bmi.py              # PyTorch training loop for Stage 1 ViT-H/14 BMI model
 │   └── train_xgboost.py              # Training script for Stage 1.5 DEXA body fat regressors
 ├── weights/
@@ -255,14 +259,13 @@ Project Face/
 │   ├── xgb_classifier_hypertension.pkl  # Stage 2 Monotonic Calibrated XGBoost (HTN, with waist)
 │   ├── xgb_classifier_hypertension_no_waist.pkl # Stage 2 Monotonic Calibrated XGBoost (HTN, no waist)
 │   └── thresholds.json               # Persisted clinical cutoff metadata & test metrics
-├── archive/                          # Historical pre-production experiments and residual models
 ├── environment.yml                   # Complete Conda environment specification (`face2bmi`)
 ├── requirements.txt                  # Python pip dependencies
 ├── run_app.bat                       # One-click Windows launcher for Production App
 ├── run_dashboard.bat                 # One-click Windows launcher for CDSS Kiosk Dashboard
-├── final_intro.mp4                   # Demonstration video
 ├── LICENSE                           # MIT License
-└── README.md                         # Master repository documentation
+├── README.md                         # Master repository documentation (English)
+└── README_TH.md                      # Master repository documentation (Thai)
 ```
 
 ---
@@ -337,14 +340,7 @@ Executes the full multi-stage inference pipeline with sample portraits from `dat
 python scripts/predict_pipeline.py
 ```
 
-### Entry Point 4: IEEE Academic Paper Compilation
-Compiles the publication-ready 4-page academic research paper directly into `reports/Face2Health_IEEE_Conference_Paper.pdf` using PyMuPDF:
-
-```bash
-python scripts/generate_academic_paper_docx.py
-```
-
-### Entry Point 5: Data ETL & Model Retraining Pipeline
+### Entry Point 4: Data ETL & Model Retraining Pipeline
 To reproduce all model weights from raw CDC NHANES data:
 
 ```bash
