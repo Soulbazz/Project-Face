@@ -56,5 +56,9 @@ reports/*สำรอง*
 # --- 5. Scratch & Debug Scripts ---
 scripts/checking.py
 scripts/feature.py
+scratch/
+Scratch/
 
-Scratch
+# --- 6. Local Archive / Prototype Backups ---
+archive/
+archive (first prototype)/
